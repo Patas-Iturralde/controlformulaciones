@@ -3,16 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class ControlFormulaciones extends StatefulWidget {
+  final Map<String, dynamic>? userData;
+
+  const ControlFormulaciones({Key? key, this.userData}) : super(key: key);
+
   @override
   _ControlFormulacionesState createState() => _ControlFormulacionesState();
 }
 
 class _ControlFormulacionesState extends State<ControlFormulaciones> {
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+  late String userRole;
 
   @override
   void initState() {
     super.initState();
+    userRole = widget.userData?['rol'] ?? '';
+    
     flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -23,7 +30,6 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
-        // Manejar la respuesta de la notificación si es necesario
       },
     );
   }
@@ -49,6 +55,79 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     );
   }
 
+  List<Widget> _buildDrawerItems() {
+    List<Widget> items = [
+      DrawerHeader(
+        decoration: BoxDecoration(
+          color: Color.fromRGBO(211, 148, 0, 1),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Configuracion\ngeneral',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 10),
+            Text(
+              'Rol: ${userRole}',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+      ListTile(
+        leading: Icon(Icons.notifications),
+        title: Text('Activar\nnotificaciones'),
+        onTap: () {
+          Navigator.pop(context);
+          _showNotification();
+        },
+      ),
+    ];
+
+    if (userRole == 'S') {
+      items.addAll([
+        ListTile(
+          leading: Icon(Icons.warning),
+          title: Text('Emitir alertas de\ntrabajo adicional'),
+          onTap: () {
+            Navigator.pop(context);
+          },
+        ),
+        ListTile(
+          leading: Icon(Icons.document_scanner),
+          title: Text('Generacion de\nreportes'),
+          onTap: () {
+            Navigator.pop(context);
+          },
+        ),
+      ]);
+    }
+
+    items.add(
+      ListTile(
+        leading: Icon(Icons.exit_to_app),
+        title: Text('Cerrar sesión'),
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.of(context).pushReplacementNamed('/login');
+        },
+      ),
+    );
+
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,54 +142,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
-          children: <Widget>[
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color.fromRGBO(211, 148, 0, 1),
-              ),
-              child: Text(
-                'Configuracion\ngeneral',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            ListTile(
-              leading: Icon(Icons.notifications),
-              title: Text('Activar\nnotificaciones'),
-              onTap: () {
-                Navigator.pop(context);
-                _showNotification();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.warning),
-              title: Text('Emitir alertas de\ntrabajo adicional'),
-              onTap: () {
-                Navigator.pop(context);
-                // Navegar a la página de configuración
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.document_scanner),
-              title: Text('Generacion de\nreportes'),
-              onTap: () {
-                Navigator.pop(context);
-                // Navegar a la página de acerca de
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.exit_to_app),
-              title: Text('Cerrar sesión'),
-              onTap: () {
-                Navigator.pop(context);
-                // Cerrar sesión
-              },
-            ),
-          ],
+          children: _buildDrawerItems(),
         ),
       ),
       body: _buildBody(),
@@ -160,7 +192,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
 
   Widget _buildItemList() {
     return ListView.builder(
-      itemCount: 3, // Replace with your actual item count
+      itemCount: 3,
       itemBuilder: (context, index) {
         return _buildItem(context, index);
       },
@@ -185,7 +217,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => FiltracionFormulaciones()), // Reemplaza OtraPagina con la página de destino
+              MaterialPageRoute(builder: (context) => FiltracionFormulaciones()),
             );
           },
           icon: Icon(Icons.arrow_forward_ios),
