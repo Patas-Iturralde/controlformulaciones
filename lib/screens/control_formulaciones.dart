@@ -2,6 +2,23 @@ import 'package:controlformulaciones/screens/filtracion_formulaciones.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+// Modelo para los items de formulación
+class FormulationItem {
+  final String id;
+  final String secuencia;
+  final String hora;
+  final String bombo;
+  final String descripcion;
+
+  FormulationItem({
+    required this.id,
+    required this.secuencia,
+    required this.hora,
+    required this.bombo,
+    required this.descripcion,
+  });
+}
+
 class ControlFormulaciones extends StatefulWidget {
   final Map<String, dynamic>? userData;
 
@@ -14,11 +31,44 @@ class ControlFormulaciones extends StatefulWidget {
 class _ControlFormulacionesState extends State<ControlFormulaciones> {
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
   late String userRole;
+  late String userName;
+  final TextEditingController _searchController = TextEditingController();
+
+  // Lista de todos los items
+  final List<FormulationItem> _allItems = [
+    FormulationItem(
+      id: 'B1',
+      secuencia: 'Sec1',
+      hora: '15:45',
+      bombo: 'Bombo 1',
+      descripcion: 'Anilina black hec',
+    ),
+    FormulationItem(
+      id: 'B2',
+      secuencia: 'Sec2',
+      hora: '15:45',
+      bombo: 'Bombo 2',
+      descripcion: 'Anilina black hec',
+    ),
+    FormulationItem(
+      id: 'B3',
+      secuencia: 'Sec3',
+      hora: '15:45',
+      bombo: 'Bombo 3',
+      descripcion: 'Anilina black hec',
+    ),
+  ];
+
+  // Lista filtrada
+  late List<FormulationItem> _filteredItems;
 
   @override
   void initState() {
     super.initState();
     userRole = widget.userData?['rol'] ?? '';
+    userName = widget.userData?['nombre'] ?? 'Usuario';
+    _filteredItems = _allItems;
+    _searchController.addListener(_filterItems);
     
     flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -32,6 +82,21 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
       onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
       },
     );
+  }
+
+  void _filterItems() {
+    final String query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredItems = _allItems;
+      } else {
+        _filteredItems = _allItems.where((item) {
+          return item.secuencia.toLowerCase().contains(query) ||
+                 item.bombo.toLowerCase().contains(query) ||
+                 item.descripcion.toLowerCase().contains(query);
+        }).toList();
+      }
+    });
   }
 
   Future<void> _showNotification() async {
@@ -65,7 +130,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Configuracion\ngeneral',
+              'Bienvenido:\n$userName',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 30,
@@ -73,12 +138,12 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 8),
             Text(
-              'Rol: ${userRole}',
+              'Rol: $userRole',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: 16,
               ),
               textAlign: TextAlign.center,
             ),
@@ -152,11 +217,13 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
   Widget _buildBody() {
     return Column(
       children: [
-        Text('Control de Formulaciones',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            )),
+        Text(
+          'Control de Formulaciones',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          )
+        ),
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
@@ -180,38 +247,57 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
 
   Widget _buildSearchBar() {
     return TextField(
+      controller: _searchController,
       decoration: InputDecoration(
-        hintText: 'Buscar',
+        hintText: 'Buscar por secuencia, bombo o descripción',
         prefixIcon: Icon(Icons.search),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25.0),
         ),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  _filterItems();
+                },
+              )
+            : null,
       ),
     );
   }
 
   Widget _buildItemList() {
+    if (_filteredItems.isEmpty) {
+      return Center(
+        child: Text(
+          'No se encontraron resultados',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
     return ListView.builder(
-      itemCount: 3,
+      itemCount: _filteredItems.length,
       itemBuilder: (context, index) {
-        return _buildItem(context, index);
+        return _buildItem(context, _filteredItems[index]);
       },
     );
   }
 
-  Widget _buildItem(BuildContext context, int index) {
+  Widget _buildItem(BuildContext context, FormulationItem item) {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          child: Text('B${index + 1}'),
+          child: Text(item.id),
           backgroundColor: Color.fromRGBO(185, 185, 185, 1),
         ),
         title: Text(
-          'Sec${index + 1} / 15:45',
+          '${item.secuencia} / ${item.hora}',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          'Bombo ${index + 1}: Anilina black hec',
+          '${item.bombo}: ${item.descripcion}',
         ),
         trailing: IconButton(
           onPressed: () {
@@ -224,5 +310,11 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }

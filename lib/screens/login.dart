@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:controlformulaciones/screens/control_formulaciones.dart';
 import 'package:controlformulaciones/api_service.dart';
+import 'package:flutter/services.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -87,6 +88,9 @@ class _LoginState extends State<Login> {
                     labelText: 'Usuario',
                     border: OutlineInputBorder(),
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
