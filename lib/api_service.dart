@@ -42,4 +42,34 @@ class ApiService {
       };
     }
   }
+
+  Future<Map<String, dynamic>> getPesajesAbiertos() async {
+    final url = Uri.parse("$baseUrl/api/pesajes_abiertos");
+    final headers = {"accept": "application/json"};
+
+    try {
+      final response = await http.get(url, headers: headers);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          "success": true,
+          "data": data,
+          "message": null,
+        };
+      } else {
+        return {
+          "success": false,
+          "data": null,
+          "message": "Error al obtener pesajes abiertos",
+        };
+      }
+    } catch (e) {
+      return {
+        "success": false,
+        "data": null,
+        "message": "Error de conexión: $e",
+      };
+    }
+  }
 }
