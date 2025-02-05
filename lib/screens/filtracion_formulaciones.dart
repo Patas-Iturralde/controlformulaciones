@@ -1,3 +1,4 @@
+import 'package:controlformulaciones/screens/control_formulaciones.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
@@ -14,20 +15,6 @@ class _ScanDialogState extends State<ScanDialog> {
   bool isScanning = false;
   MobileScannerController controller = MobileScannerController();
 
-  Future<void> _scanFromGallery() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        setState(() {
-          _scannedCode = "Código de imagen";
-        });
-      }
-    } catch (e) {
-      print("Error scanning from gallery: $e");
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -43,9 +30,7 @@ class _ScanDialogState extends State<ScanDialog> {
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 20),
-            if (_scannedCode != null)
-              Text('Código escaneado: $_scannedCode'),
+            if (_scannedCode != null) Text('Código escaneado: $_scannedCode'),
             if (isScanning)
               Container(
                 height: 300,
@@ -66,7 +51,6 @@ class _ScanDialogState extends State<ScanDialog> {
                   },
                 ),
               ),
-            SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -84,11 +68,6 @@ class _ScanDialogState extends State<ScanDialog> {
                   icon: Icon(Icons.camera_alt),
                   label: Text(isScanning ? 'Detener' : 'Cámara'),
                 ),
-                // ElevatedButton.icon(
-                //   onPressed: _scanFromGallery,
-                //   icon: Icon(Icons.photo_library),
-                //   label: Text('Galería'),
-                // ),
               ],
             ),
           ],
@@ -120,90 +99,50 @@ class _ScanDialogState extends State<ScanDialog> {
   }
 }
 
-enum RowStatus {
-  completed,
-  current,
-  skipped,
-  pending
-}
-
-class FormulacionItem {
-  bool checked;
-  String secuencia;
-  String instruccion;
-  String temperatura;
-  String tiempo;
-  RowStatus status;
-  String? codigoEscaneado;
-
-  FormulacionItem({
-    this.checked = false,
-    required this.secuencia,
-    required this.instruccion,
-    required this.temperatura,
-    required this.tiempo,
-    this.status = RowStatus.pending,
-    this.codigoEscaneado,
-  });
-}
-
 class FiltracionFormulaciones extends StatefulWidget {
+  final FormulationItem pesajeItem;
+  final List<FormulationItem> bomboItems;
+
+  const FiltracionFormulaciones({
+    Key? key,
+    required this.pesajeItem,
+    required this.bomboItems,
+  }) : super(key: key);
+
   @override
-  _FiltracionFormulacionesState createState() => _FiltracionFormulacionesState();
+  _FiltracionFormulacionesState createState() =>
+      _FiltracionFormulacionesState();
 }
 
 class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
-  List<FormulacionItem> items = [];
-  String selectedBombo = 'BOMBO TENIDO 5';
-  final List<String> bombos = ['BOMBO TENIDO 5', 'BOMBO 2', 'BOMBO 3'];
+  late List<FormulationItem> items;
 
   @override
   void initState() {
     super.initState();
-    WidgetsFlutterBinding.ensureInitialized();
-    items = [
-      FormulacionItem(
-        secuencia: '1',
-        instruccion: 'Agregar agua',
-        temperatura: '25°C',
-        tiempo: '10 min'
-      ),
-      FormulacionItem(
-        secuencia: '2',
-        instruccion: 'Mezclar químicos',
-        temperatura: '30°C',
-        tiempo: '15 min'
-      ),
-      FormulacionItem(
-        secuencia: '3',
-        instruccion: 'Adicionar colorante',
-        temperatura: '35°C',
-        tiempo: '20 min'
-      ),
-      FormulacionItem(
-        secuencia: '4',
-        instruccion: 'Mezclar solución',
-        temperatura: '40°C',
-        tiempo: '25 min'
-      ),
-      FormulacionItem(
-        secuencia: '5',
-        instruccion: 'Agregar fijador',
-        temperatura: '45°C',
-        tiempo: '30 min'
-      ),
-    ];
+    items = List.from(widget.bomboItems)
+      ..sort((a, b) => a.sec.compareTo(b.sec));
+  }
+
+  Future<void> _openCamera(int index) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => ScanDialog(),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        items[index].codigoEscaneado = result;
+      });
+    }
   }
 
   void _updateRowStatuses(int currentIndex) {
     setState(() {
       for (int i = 0; i < items.length; i++) {
         if (i < currentIndex) {
-          if (!items[i].checked) {
-            items[i].status = RowStatus.skipped;
-          } else {
-            items[i].status = RowStatus.completed;
-          }
+          items[i].status =
+              items[i].checked ? RowStatus.completed : RowStatus.skipped;
         } else if (i == currentIndex) {
           items[i].status = RowStatus.current;
         } else {
@@ -213,33 +152,12 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     });
   }
 
-  Future<void> _openCamera(int index) async {
-    final result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) => ScanDialog(),
-    );
-  
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        items[index].codigoEscaneado = result;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 80),
-          child: Image.asset('assets/images/logo_login.png'),
-        ),
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back),
-        ),
+        title: Text(widget.pesajeItem.maquina),
         centerTitle: true,
-        backgroundColor: Color.fromRGBO(230, 235, 237, 0),
       ),
       body: Column(
         children: [
@@ -250,52 +168,12 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Bombo:',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        DropdownButton<String>(
-                          value: selectedBombo,
-                          items: bombos.map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              selectedBombo = newValue!;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Formulación: F001',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Número de pesaje: P001',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Nombre de producto: Producto X',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Número de orden de producción: OP001',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    Text('OP: ${widget.pesajeItem.nrOp}',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 8),
+                    Text('Producto: ${widget.pesajeItem.productoOp}',
+                        style: TextStyle(fontSize: 16)),
                     SizedBox(height: 16),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -303,15 +181,16 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                         columnSpacing: 20,
                         columns: const [
                           DataColumn(label: Text('Control')),
-                          DataColumn(label: Text('Secuencia')),
+                          DataColumn(label: Text('Sec')),
                           DataColumn(label: Text('Instrucción')),
-                          DataColumn(label: Text('Temperatura')),
+                          DataColumn(label: Text('Químico')),
+                          DataColumn(label: Text('Temp')),
                           DataColumn(label: Text('Tiempo')),
                           DataColumn(label: Text('Scan')),
                         ],
                         rows: items.asMap().entries.map((entry) {
                           int idx = entry.key;
-                          FormulacionItem item = entry.value;
+                          FormulationItem item = entry.value;
                           return DataRow(
                             color: MaterialStateProperty.resolveWith<Color?>(
                               (Set<MaterialState> states) {
@@ -332,27 +211,16 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                 value: item.checked,
                                 onChanged: (bool? value) {
                                   setState(() {
-                                    items[idx].checked = value ?? false;
+                                    item.checked = value ?? false;
                                     _updateRowStatuses(idx);
                                   });
                                 },
                               )),
-                              DataCell(Text(item.secuencia)),
-                              DataCell(
-                                TextFormField(
-                                  initialValue: item.instruccion,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      items[idx].instruccion = value;
-                                    });
-                                  },
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                  ),
-                                ),
-                              ),
-                              DataCell(Text(item.temperatura)),
-                              DataCell(Text(item.tiempo)),
+                              DataCell(Text('${item.sec}')),
+                              DataCell(Text(item.operMaquina)),
+                              DataCell(Text(item.codProducto)),
+                              DataCell(Text('${item.temperatura}°C')),
+                              DataCell(Text('${item.minutos}min')),
                               DataCell(
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -362,10 +230,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                       icon: Icon(Icons.camera_alt),
                                     ),
                                     if (item.codigoEscaneado != null)
-                                      Text(
-                                        item.codigoEscaneado!,
-                                        style: TextStyle(fontSize: 12),
-                                      ),
+                                      Text(item.codigoEscaneado!,
+                                          style: TextStyle(fontSize: 12)),
                                   ],
                                 ),
                               ),
