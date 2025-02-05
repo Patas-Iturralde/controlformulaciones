@@ -127,6 +127,23 @@ class _LoginState extends State<Login> {
                     : const Text('Ingresar'),
               ),
               const SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ControlFormulaciones(
+                        userData: {
+                          'nombre': 'Test User',
+                          'rol': 'S',
+                        },
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Modo Prueba'),
+              ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

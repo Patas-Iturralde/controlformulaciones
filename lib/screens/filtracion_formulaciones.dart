@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 class ScanDialog extends StatefulWidget {
   @override
@@ -11,34 +11,20 @@ class ScanDialog extends StatefulWidget {
 class _ScanDialogState extends State<ScanDialog> {
   final TextEditingController _codeController = TextEditingController();
   String? _scannedCode;
+  bool isScanning = false;
+  MobileScannerController controller = MobileScannerController();
 
-  Future<void> _scanBarcode(ImageSource source) async {
+  Future<void> _scanFromGallery() async {
     try {
-      if (source == ImageSource.camera) {
-        String barcodeScanRes = await FlutterBarcodeScanner.scanBarcode(
-          '#ff6666',
-          'Cancelar',
-          true,
-          ScanMode.BARCODE,
-        );
-        if (barcodeScanRes != '-1') {
-          setState(() {
-            _scannedCode = barcodeScanRes;
-            _codeController.text = barcodeScanRes;
-          });
-        }
-      } else {
-        final ImagePicker picker = ImagePicker();
-        final XFile? image = await picker.pickImage(source: source);
-        if (image != null) {
-          // Implementar lógica para escanear código de barras desde imagen
-          setState(() {
-            _scannedCode = "Código de imagen"; // Reemplazar con código real
-          });
-        }
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _scannedCode = "Código de imagen";
+        });
       }
     } catch (e) {
-      print("Error scanning barcode: $e");
+      print("Error scanning from gallery: $e");
     }
   }
 
@@ -60,20 +46,49 @@ class _ScanDialogState extends State<ScanDialog> {
             SizedBox(height: 20),
             if (_scannedCode != null)
               Text('Código escaneado: $_scannedCode'),
+            if (isScanning)
+              Container(
+                height: 300,
+                width: 300,
+                child: MobileScanner(
+                  controller: controller,
+                  onDetect: (capture) {
+                    final barcodes = capture.barcodes;
+                    if (barcodes.isNotEmpty) {
+                      final String code = barcodes.first.rawValue ?? '';
+                      setState(() {
+                        _scannedCode = code;
+                        _codeController.text = code;
+                        isScanning = false;
+                      });
+                      controller.stop();
+                    }
+                  },
+                ),
+              ),
             SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () => _scanBarcode(ImageSource.camera),
+                  onPressed: () {
+                    setState(() {
+                      isScanning = !isScanning;
+                      if (!isScanning) {
+                        controller.stop();
+                      } else {
+                        controller.start();
+                      }
+                    });
+                  },
                   icon: Icon(Icons.camera_alt),
-                  label: Text('Cámara'),
+                  label: Text(isScanning ? 'Detener' : 'Cámara'),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () => _scanBarcode(ImageSource.gallery),
-                  icon: Icon(Icons.photo_library),
-                  label: Text('Galería'),
-                ),
+                // ElevatedButton.icon(
+                //   onPressed: _scanFromGallery,
+                //   icon: Icon(Icons.photo_library),
+                //   label: Text('Galería'),
+                // ),
               ],
             ),
           ],
@@ -81,17 +96,27 @@ class _ScanDialogState extends State<ScanDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            controller.stop();
+            Navigator.pop(context);
+          },
           child: Text('Cancelar'),
         ),
         ElevatedButton(
           onPressed: () {
+            controller.stop();
             Navigator.pop(context, _scannedCode ?? _codeController.text);
           },
           child: Text('Aceptar'),
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 }
 
@@ -128,7 +153,6 @@ class FiltracionFormulaciones extends StatefulWidget {
 }
 
 class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
-  final ImagePicker _picker = ImagePicker();
   List<FormulacionItem> items = [];
   String selectedBombo = 'BOMBO TENIDO 5';
   final List<String> bombos = ['BOMBO TENIDO 5', 'BOMBO 2', 'BOMBO 3'];
