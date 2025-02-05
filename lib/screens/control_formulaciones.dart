@@ -173,20 +173,11 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Configuracion\ngeneral',
+              'Bienvenid@\n$userName',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 30,
                 fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Bienvenido: $userName',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
               ),
               textAlign: TextAlign.center,
             ),
