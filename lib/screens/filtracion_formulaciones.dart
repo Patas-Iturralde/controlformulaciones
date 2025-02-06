@@ -105,6 +105,101 @@ class _ScanDialogState extends State<ScanDialog> {
   }
 }
 
+class TrabajoAdicionalDialog extends StatefulWidget {
+  final double prevSecuencia;
+
+  TrabajoAdicionalDialog({required this.prevSecuencia});
+
+  @override
+  _TrabajoAdicionalDialogState createState() => _TrabajoAdicionalDialogState();
+}
+
+class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _instruccionController = TextEditingController();
+  final _productoController = TextEditingController();
+  final _temperaturaController = TextEditingController();
+  final _tiempoController = TextEditingController();
+  final _ctdExplosionController = TextEditingController();
+  final _observacionController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Agregar Paso Adicional'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Secuencia: ${widget.prevSecuencia + 0.1}'),
+              TextFormField(
+                controller: _instruccionController,
+                decoration: InputDecoration(labelText: 'Instrucción'),
+                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+              ),
+              TextFormField(
+                controller: _productoController,
+                decoration: InputDecoration(labelText: 'Producto'),
+                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+              ),
+              TextFormField(
+                controller: _temperaturaController,
+                decoration: InputDecoration(labelText: 'Temperatura'),
+                keyboardType: TextInputType.number,
+                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+              ),
+              TextFormField(
+                controller: _tiempoController,
+                decoration: InputDecoration(labelText: 'Tiempo (minutos)'),
+                keyboardType: TextInputType.number,
+                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+              ),
+              TextFormField(
+                controller: _ctdExplosionController,
+                decoration: InputDecoration(labelText: 'Cantidad Explosión'),
+                keyboardType: TextInputType.number,
+              ),
+              TextFormField(
+                controller: _observacionController,
+                decoration: InputDecoration(labelText: 'Observación'),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.pop(context, {
+                'secuencia': widget.prevSecuencia + 0.1,
+                'instruccion': _instruccionController.text,
+                'producto': _productoController.text,
+                'temperatura': double.parse(_temperaturaController.text),
+                'tiempo': int.parse(_tiempoController.text),
+                'ctdExplosion': _ctdExplosionController.text.isEmpty
+                    ? null
+                    : double.parse(_ctdExplosionController.text),
+                'observacion': _observacionController.text.isEmpty
+                    ? null
+                    : _observacionController.text,
+              });
+            }
+          },
+          child: Text('Agregar'),
+        ),
+      ],
+    );
+  }
+}
+
 class FiltracionFormulaciones extends StatefulWidget {
   final FormulationItem pesajeItem;
   final List<FormulationItem> bomboItems;
@@ -150,6 +245,127 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     }
   }
 
+  Future<void> _showObservacionDialog(int index) async {
+    final TextEditingController _observacionController =
+        TextEditingController();
+    _observacionController.text = items[index].observacion ?? '';
+
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Observación'),
+          content: TextField(
+            controller: _observacionController,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  items[index].observacion = _observacionController.text;
+                });
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showCantidadExplosionDialog(int index) async {
+    final TextEditingController _cantidadController = TextEditingController();
+    _cantidadController.text = items[index].ctdExplosion?.toString() ?? '';
+
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Cantidad Explosión'),
+          content: TextField(
+            controller: _cantidadController,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  items[index].ctdExplosion =
+                      double.tryParse(_cantidadController.text);
+                });
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showTrabajoAdicionalDialog(FormulationItem prevItem) async {
+  final result = await showDialog(
+    context: context,
+    builder: (BuildContext context) => TrabajoAdicionalDialog(
+      prevSecuencia: prevItem.sec.toDouble(),
+    ),
+  );
+
+  if (result != null) {
+    setState(() {
+      // Crear nuevo FormulationItem con los datos del diálogo
+      final newItem = FormulationItem(
+        idPesagemItem: 0,
+        nrOp: prevItem.nrOp,
+        codProducto: prevItem.codProducto,
+        productoOp: prevItem.productoOp,
+        maquina: prevItem.maquina,
+        sec: double.parse('${prevItem.sec}.1').round(), // Esto asegura que sea 1.1, 2.1, etc.
+        operMaquina: result['instruccion'],
+        temperatura: result['temperatura'],
+        minutos: result['tiempo'],
+        situacion: prevItem.situacion,
+        fechaApertura: prevItem.fechaApertura,
+        productoPesaje: result['producto'],
+        ctdExplosion: result['ctdExplosion'],
+        observacion: result['observacion'],
+      );
+
+      // Encontrar el índice del item previo
+      final prevIndex = items.indexWhere((item) => item.sec == prevItem.sec);
+      
+      // Insertar el nuevo item justo después del item previo
+      items.insert(prevIndex + 1, newItem);
+      
+      // Reordenar la lista por secuencia para mantener el orden correcto
+      items.sort((a, b) {
+        // Convertir las secuencias a números decimales para comparar correctamente
+        double seqA = double.parse(a.sec.toString().contains('.') ? 
+          a.sec.toString() : '${a.sec}.0');
+        double seqB = double.parse(b.sec.toString().contains('.') ? 
+          b.sec.toString() : '${b.sec}.0');
+        return seqA.compareTo(seqB);
+      });
+    });
+  }
+}
+
   void _updateRowStatuses(int currentIndex) {
     setState(() {
       for (int i = 0; i < items.length; i++) {
@@ -173,6 +389,12 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
           appBar: AppBar(
             title: Text(widget.pesajeItem.maquina),
             centerTitle: true,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pop(context, items);
+              },
+            ),
           ),
           body: Column(
             children: [
@@ -183,11 +405,16 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('OP: ${widget.pesajeItem.nrOp}',
+                        Text('Orden de Produción: ${widget.pesajeItem.nrOp}',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                                fontSize: 16)),
                         SizedBox(height: 8),
                         Text('Producto: ${widget.pesajeItem.productoOp}',
+                            style: TextStyle(fontSize: 16)),
+                        Text(
+                            'Código producto: ${widget.pesajeItem.codProducto}',
+                            style: TextStyle(fontSize: 16)),
+                        Text('Número de pesaje: ${widget.pesajeItem.nrOp}',
                             style: TextStyle(fontSize: 16)),
                         SizedBox(height: 16),
                         SingleChildScrollView(
@@ -198,9 +425,11 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                               DataColumn(label: Text('Control')),
                               DataColumn(label: Text('Sec')),
                               DataColumn(label: Text('Instrucción')),
-                              DataColumn(label: Text('Químico')),
+                              DataColumn(label: Text('Producto')),
                               DataColumn(label: Text('Temp')),
                               DataColumn(label: Text('Tiempo')),
+                              DataColumn(label: Text('Ctd Explosion')),
+                              DataColumn(label: Text('Observación')),
                               DataColumn(label: Text('Scan')),
                             ],
                             rows: items.asMap().entries.map((entry) {
@@ -243,8 +472,30 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                     },
                                   )),
                                   DataCell(Text('${item.sec}')),
-                                  DataCell(Text(item.operMaquina)),
-                                  DataCell(Text(item.codProducto)),
+                                  DataCell(
+                                    GestureDetector(
+                                      onDoubleTap: () {
+                                        final instruccion =
+                                            item.operMaquina.toUpperCase();
+                                        if ([
+                                          'ADICIONAR AGUA',
+                                          'CONTROLAR PH',
+                                          'CONTROL HUMECTACION',
+                                          'CONTROL ATRAVESADO',
+                                          'CONTROL AGOTAMIENTO'
+                                        ].contains(instruccion)) {
+                                          _showObservacionDialog(idx);
+                                        } else if ([
+                                          'AGREGAR PQ TAMBOR',
+                                          'AÑADIR TINTA'
+                                        ].contains(instruccion)) {
+                                          _showCantidadExplosionDialog(idx);
+                                        }
+                                      },
+                                      child: Text(item.operMaquina),
+                                    ),
+                                  ),
+                                  DataCell(Text(item.productoPesaje ?? '')),
                                   DataCell(Text('${item.temperatura}°C')),
                                   DataCell(
                                     Row(
@@ -262,19 +513,29 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                       ],
                                     ),
                                   ),
+                                  DataCell(Text(
+                                      item.ctdExplosion?.toString() ?? '')),
+                                  DataCell(Text(item.observacion ?? '')),
                                   DataCell(
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          onPressed: () => _openCamera(idx),
-                                          icon: Icon(Icons.camera_alt),
-                                        ),
-                                        if (item.codigoEscaneado != null)
-                                          Text(item.codigoEscaneado!,
-                                              style: TextStyle(fontSize: 12)),
-                                      ],
-                                    ),
+                                    [
+                                      'AGREGAR PQ TAMBOR',
+                                      'AÑADIR TINTA'
+                                    ].contains(item.operMaquina.toUpperCase())
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                onPressed: () =>
+                                                    _openCamera(idx),
+                                                icon: Icon(Icons.camera_alt),
+                                              ),
+                                              if (item.codigoEscaneado != null)
+                                                Text(item.codigoEscaneado!,
+                                                    style: TextStyle(
+                                                        fontSize: 12)),
+                                            ],
+                                          )
+                                        : Container(),
                                   ),
                                 ],
                               );
@@ -338,8 +599,37 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                     ),
                     SizedBox(width: 10),
                     ElevatedButton(
-                      onPressed: () {
-                        // Implementar lógica para trabajo adicional
+                      onPressed: () async {
+                        if (items.isEmpty) return;
+
+                        // Mostrar diálogo para seleccionar después de qué secuencia agregar
+                        final selectedItem = await showDialog<FormulationItem>(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text('Seleccionar Secuencia'),
+                              content: Container(
+                                width: double.maxFinite,
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: items.length,
+                                  itemBuilder: (context, index) {
+                                    final item = items[index];
+                                    return ListTile(
+                                      title: Text('Secuencia ${item.sec}'),
+                                      subtitle: Text(item.operMaquina),
+                                      onTap: () => Navigator.pop(context, item),
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        );
+
+                        if (selectedItem != null) {
+                          await _showTrabajoAdicionalDialog(selectedItem);
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         padding:

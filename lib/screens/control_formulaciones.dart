@@ -18,9 +18,12 @@ class FormulationItem {
   final int minutos;
   final String situacion;
   final String? fechaApertura;
+  final String? productoPesaje;
   bool checked;
   RowStatus status;
   String? codigoEscaneado;
+  String? observacion;
+  double? ctdExplosion;
 
   FormulationItem({
     required this.idPesagemItem,
@@ -34,9 +37,12 @@ class FormulationItem {
     required this.minutos,
     required this.situacion,
     required this.fechaApertura,
+    this.productoPesaje,
     this.checked = false,
     this.status = RowStatus.pending,
     this.codigoEscaneado,
+    this.observacion,
+    this.ctdExplosion,
   });
 
   factory FormulationItem.fromJson(Map<String, dynamic> json) {
@@ -52,6 +58,9 @@ class FormulationItem {
       minutos: json['MINUTOS'] ?? 0,
       situacion: json['SITUACION'],
       fechaApertura: json['FECHA_APERTURA'] ?? '',
+      productoPesaje: json['PRODUCTO_PESAJE'], 
+      observacion: json['OBSERVACION'],
+      ctdExplosion: json['CTD_EXPLOSION']?.toDouble(),
     );
   }
 }
@@ -149,17 +158,35 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
                         ],
                       ),
                       trailing: IconButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FiltracionFormulaciones(
-                              pesajeItem: pesajeGroup.value,
-                              bomboItems: bomboItems
-                                  .where((item) => item.nrOp == pesajeGroup.key)
-                                  .toList(),
+                        onPressed: () async {
+                          final updatedItems =
+                              await Navigator.push<List<FormulationItem>>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => FiltracionFormulaciones(
+                                pesajeItem: pesajeGroup.value,
+                                bomboItems: bomboItems
+                                    .where(
+                                        (item) => item.nrOp == pesajeGroup.key)
+                                    .toList(),
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+
+                          if (updatedItems != null) {
+                            setState(() {
+                              for (var updatedItem in updatedItems) {
+                                final index = items.indexWhere((item) =>
+                                    item.idPesagemItem ==
+                                    updatedItem.idPesagemItem);
+                                if (index != -1) {
+                                  items[index] = updatedItem;
+                                }
+                              }
+                              _filteredItems = items;
+                            });
+                          }
+                        },
                         icon: Icon(Icons.arrow_forward_ios),
                       ),
                     ),
