@@ -139,8 +139,15 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
               .map((pesajeGroup) => Card(
                     child: ListTile(
                       title: Text('Pesaje: ${pesajeGroup.key}'),
-                      subtitle: Text(
-                          'Fecha: ${pesajeGroup.value.fechaApertura?.split('T')[0]}'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              'Secuencia actual: ${bomboItems.where((item) => item.nrOp == pesajeGroup.key && item.status == RowStatus.current).firstOrNull?.sec ?? 'No iniciado'}'),
+                          Text(
+                              'Fecha: ${pesajeGroup.value.fechaApertura?.split('T')[0]}'),
+                        ],
+                      ),
                       trailing: IconButton(
                         onPressed: () => Navigator.push(
                           context,
