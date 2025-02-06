@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:controlformulaciones/screens/control_formulaciones.dart';
 import 'package:controlformulaciones/api_service.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -14,8 +17,110 @@ class _LoginState extends State<Login> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _apiService = ApiService();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   bool _isLoading = false;
   String? _errorMessage;
+  Timer? _timer;
+  int _remainingSeconds = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _initNotifications();
+  }
+
+  Future<void> _initNotifications() async {
+    try {
+      // Solicitar permiso primero
+      final status = await Permission.notification.request();
+      if (status.isGranted) {
+        const androidInit =
+            AndroidInitializationSettings('@mipmap/ic_launcher');
+        const initSettings = InitializationSettings(android: androidInit);
+
+        await flutterLocalNotificationsPlugin.initialize(
+          initSettings,
+          onDidReceiveNotificationResponse:
+              (NotificationResponse notificationResponse) {
+            print('Notificación recibida');
+          },
+        );
+
+        // Crear el canal de notificaciones
+        const AndroidNotificationChannel channel = AndroidNotificationChannel(
+          'test_channel',
+          'Test Notifications',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+        );
+
+        await flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.createNotificationChannel(channel);
+
+        print('Notificaciones inicializadas correctamente');
+      } else {
+        print('Permiso de notificaciones denegado');
+      }
+    } catch (e) {
+      print('Error inicializando notificaciones: $e');
+    }
+  }
+
+  void _startTestTimer() {
+    // Cambiamos a 20 segundos para pruebas
+    final totalSeconds = 20;
+    _remainingSeconds = totalSeconds;
+
+    _timer?.cancel();
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_remainingSeconds > 0) {
+          _remainingSeconds--;
+          print('Tiempo restante: $_remainingSeconds segundos');
+
+          if (_remainingSeconds == 10) {
+            // Notificar a los 10 segundos
+            _showNotification("Prueba de Notificación",
+                "¡Quedan 10 segundos en el temporizador de prueba!");
+            print('Enviando notificación...');
+          }
+        } else {
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  Future<void> _showNotification(String title, String body) async {
+    const androidDetails = AndroidNotificationDetails(
+      'test_channel',
+      'Test Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+
+      icon: '@mipmap/ic_launcher',
+    );
+    const notificationDetails = NotificationDetails(android: androidDetails);
+
+    try {
+      await flutterLocalNotificationsPlugin.show(
+        0,
+        title,
+        body,
+        notificationDetails,
+      );
+      print('Notificación enviada exitosamente');
+    } catch (e) {
+      print('Error al enviar notificación: $e');
+    }
+  }
 
   Future<void> _handleLogin() async {
     setState(() {
@@ -58,6 +163,7 @@ class _LoginState extends State<Login> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -127,23 +233,15 @@ class _LoginState extends State<Login> {
                     : const Text('Ingresar'),
               ),
               const SizedBox(height: 20),
-              TextButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ControlFormulaciones(
-                        userData: {
-                          'nombre': 'Test User',
-                          'rol': 'S',
-                        },
-                      ),
-                    ),
-                  );
-                },
-                child: const Text('Modo Prueba'),
+              ElevatedButton(
+                onPressed: _startTestTimer,
+                child: Text('Probar Notificación (20s)'),
               ),
-              const SizedBox(height: 20),
+              if (_remainingSeconds > 0)
+                Text(
+                  'Tiempo restante: ${(_remainingSeconds / 60).floor()}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}',
+                  style: TextStyle(fontSize: 16),
+                ),
             ],
           ),
         ),

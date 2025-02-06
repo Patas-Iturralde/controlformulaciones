@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:async';
+import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 
 class ScanDialog extends StatefulWidget {
   @override
@@ -116,12 +120,152 @@ class FiltracionFormulaciones extends StatefulWidget {
 
 class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   late List<FormulationItem> items;
+  Map<int, Timer> _timers = {};
+  Map<int, int> _remainingSeconds = {};
+  late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
 
   @override
   void initState() {
     super.initState();
+    _requestNotificationPermissions();
     items = List.from(widget.bomboItems)
       ..sort((a, b) => a.sec.compareTo(b.sec));
+    flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+    _initNotifications();
+  }
+
+  Future<void> _requestNotificationPermissions() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.notification.request();
+      if (!status.isGranted) {
+        await Permission.notification.request();
+      }
+    }
+  }
+
+  Future<void> _initNotifications() async {
+    try {
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const initSettings = InitializationSettings(android: androidInit);
+
+      await flutterLocalNotificationsPlugin.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse:
+            (NotificationResponse notificationResponse) {
+          print('Notificación recibida');
+        },
+      );
+
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'timer_channel',
+        'Timer Notifications',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+
+      print('Notificaciones inicializadas correctamente');
+    } catch (e) {
+      print('Error inicializando notificaciones: $e');
+    }
+  }
+
+  void _startTimer(int index, int minutes) {
+    _remainingSeconds[index] = minutes * 60;
+    _timers[index]?.cancel();
+
+    // Calcular fecha y hora de finalización
+    DateTime now = DateTime.now();
+    DateTime endTime = now.add(Duration(minutes: minutes));
+    String formattedEndTime =
+        "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+    String formattedEndDate =
+        "${endTime.day.toString().padLeft(2, '0')}/${endTime.month.toString().padLeft(2, '0')}/${endTime.year}";
+
+    _showNotification("Inicio de Proceso ${widget.pesajeItem.maquina}",
+        "Se inició el proceso en secuencia ${items[index].sec} con duración de $minutes minutos.\nFinalizará el $formattedEndDate a las $formattedEndTime");
+
+    _timers[index] = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_remainingSeconds[index]! > 0) {
+          _remainingSeconds[index] = _remainingSeconds[index]! - 1;
+
+          if (_remainingSeconds[index] == 300) {
+            // 5 minutos
+            DateTime currentTime = DateTime.now();
+            String formattedCurrentTime =
+                "${currentTime.hour.toString().padLeft(2, '0')}:${currentTime.minute.toString().padLeft(2, '0')}";
+            String formattedCurrentDate =
+                "${currentTime.day.toString().padLeft(2, '0')}/${currentTime.month.toString().padLeft(2, '0')}/${currentTime.year}";
+
+            _showNotification("¡Atención! ${widget.pesajeItem.maquina}",
+                "Quedan 5 minutos para finalizar el proceso en secuencia ${items[index].sec}\nFecha: $formattedCurrentDate\nHora: $formattedCurrentTime");
+          }
+          if (_remainingSeconds[index] == 60) {
+            // 1 minuto
+            DateTime currentTime = DateTime.now();
+            String formattedCurrentTime =
+                "${currentTime.hour.toString().padLeft(2, '0')}:${currentTime.minute.toString().padLeft(2, '0')}";
+            String formattedCurrentDate =
+                "${currentTime.day.toString().padLeft(2, '0')}/${currentTime.month.toString().padLeft(2, '0')}/${currentTime.year}";
+
+            _showNotification("¡Atención! ${widget.pesajeItem.maquina}",
+                "Queda 1 minuto para finalizar el proceso en secuencia ${items[index].sec}\nFecha: $formattedCurrentDate\nHora: $formattedCurrentTime");
+          }
+          if (_remainingSeconds[index] == 0) {
+            // Finalizar proceso
+            DateTime currentTime = DateTime.now();
+            String formattedCurrentTime =
+                "${currentTime.hour.toString().padLeft(2, '0')}:${currentTime.minute.toString().padLeft(2, '0')}";
+            String formattedCurrentDate =
+                "${currentTime.day.toString().padLeft(2, '0')}/${currentTime.month.toString().padLeft(2, '0')}/${currentTime.year}";
+
+            _showNotification(
+                "Finalización de Proceso ${widget.pesajeItem.maquina}",
+                "El proceso en secuencia ${items[index].sec} ha finalizado.\nFecha: $formattedCurrentDate\nHora: $formattedCurrentTime");
+          }
+        } else {
+          timer.cancel();
+          _timers.remove(index);
+        }
+      });
+    });
+  }
+
+  Future<void> _showNotification(String title, String body) async {
+    const androidDetails = AndroidNotificationDetails(
+      'timer_channel',
+      'Timer Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+    );
+    const notificationDetails = NotificationDetails(android: androidDetails);
+
+    try {
+      await flutterLocalNotificationsPlugin.show(
+        0,
+        title,
+        body,
+        notificationDetails,
+      );
+      print('Notificación enviada exitosamente');
+    } catch (e) {
+      print('Error al enviar notificación: $e');
+    }
+  }
+
+  String _formatTime(int seconds) {
+    int minutes = seconds ~/ 60;
+    int remainingSecs = seconds % 60;
+    return '$minutes:${remainingSecs.toString().padLeft(2, '0')}';
   }
 
   Future<void> _openCamera(int index) async {
@@ -212,6 +356,13 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                 onChanged: (bool? value) {
                                   setState(() {
                                     item.checked = value ?? false;
+                                    if (value == true && item.minutos > 0) {
+                                      _startTimer(idx, item.minutos);
+                                    } else {
+                                      _timers[idx]?.cancel();
+                                      _timers.remove(idx);
+                                      _remainingSeconds.remove(idx);
+                                    }
                                     _updateRowStatuses(idx);
                                   });
                                 },
@@ -220,7 +371,20 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                               DataCell(Text(item.operMaquina)),
                               DataCell(Text(item.codProducto)),
                               DataCell(Text('${item.temperatura}°C')),
-                              DataCell(Text('${item.minutos}min')),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    Text('${item.minutos}min'),
+                                    if (_remainingSeconds.containsKey(idx) &&
+                                        item.checked)
+                                      Padding(
+                                        padding: EdgeInsets.only(left: 8),
+                                        child: Text(_formatTime(
+                                            _remainingSeconds[idx]!)),
+                                      ),
+                                  ],
+                                ),
+                              ),
                               DataCell(
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -269,6 +433,9 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                         item.status = RowStatus.pending;
                         item.codigoEscaneado = null;
                       }
+                      _timers.forEach((_, timer) => timer.cancel());
+                      _timers.clear();
+                      _remainingSeconds.clear();
                     });
                   },
                   style: ElevatedButton.styleFrom(
@@ -311,5 +478,11 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _timers.forEach((_, timer) => timer.cancel());
+    super.dispose();
   }
 }
