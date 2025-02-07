@@ -703,36 +703,40 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                   pw.Text('Fecha Proceso: ${widget.pesajeItem.fechaApertura}'),
                                   pw.Text('Fecha Guardado: ${DateTime.now().toIso8601String()}'),
                                   pw.SizedBox(height: 20),
-                                  pw.Table.fromTextArray(
-                                    context: context,
-                                    data: <List<String>>[
-                                      <String>[
-                                        'Secuencia',
-                                        'Instrucción',
-                                        'Producto',
-                                        'Temperatura',
-                                        'Tiempo',
-                                        'Ctd Explosion',
-                                        'Observación',
-                                        'Código Escaneado'
+                                  // Se envuelve la tabla en un Container de altura fija para forzar su visualización
+                                  pw.Container(
+                                    height: 400,
+                                    child: pw.Table.fromTextArray(
+                                      context: context,
+                                      data: <List<String>>[
+                                        <String>[
+                                          'Secuencia',
+                                          'Instrucción',
+                                          'Producto',
+                                          'Temperatura',
+                                          'Tiempo',
+                                          'Ctd Explosion',
+                                          'Observación',
+                                          'Código Escaneado'
+                                        ],
+                                        ...secuencias.map<List<String>>((seq) => [
+                                              seq['secuencia'].toString(),
+                                              seq['instruccion'] ?? '',
+                                              seq['producto'] ?? '',
+                                              seq['temperatura'].toString(),
+                                              seq['tiempo'].toString(),
+                                              seq['ctd_explosion'] != null
+                                                  ? seq['ctd_explosion'].toString()
+                                                  : '',
+                                              seq['observacion'] != null
+                                                  ? seq['observacion']
+                                                  : '',
+                                              seq['codigo_escaneado'] != null
+                                                  ? seq['codigo_escaneado']
+                                                  : '',
+                                            ]).toList(),
                                       ],
-                                      ...secuencias.map<List<String>>((seq) => [
-                                            seq['secuencia'].toString(),
-                                            seq['instruccion'] ?? '',
-                                            seq['producto'] ?? '',
-                                            seq['temperatura'].toString(),
-                                            seq['tiempo'].toString(),
-                                            seq['ctd_explosion'] != null
-                                                ? seq['ctd_explosion'].toString()
-                                                : '',
-                                            seq['observacion'] != null
-                                                ? seq['observacion']
-                                                : '',
-                                            seq['codigo_escaneado'] != null
-                                                ? seq['codigo_escaneado']
-                                                : '',
-                                          ]).toList(),
-                                    ],
+                                    ),
                                   )
                                 ],
                               );
