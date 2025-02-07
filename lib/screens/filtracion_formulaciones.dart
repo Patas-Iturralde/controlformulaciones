@@ -1,4 +1,5 @@
 import 'package:controlformulaciones/screens/control_formulaciones.dart';
+import 'package:controlformulaciones/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 
+// Diálogo del Scanner
 class ScanDialog extends StatefulWidget {
   @override
   _ScanDialogState createState() => _ScanDialogState();
@@ -107,10 +109,15 @@ class _ScanDialogState extends State<ScanDialog> {
   }
 }
 
+// Diálogo de Trabajo Adicional
 class TrabajoAdicionalDialog extends StatefulWidget {
   final double prevSecuencia;
+  final ApiService apiService;
 
-  TrabajoAdicionalDialog({required this.prevSecuencia});
+  TrabajoAdicionalDialog({
+    required this.prevSecuencia,
+    required this.apiService,
+  });
 
   @override
   _TrabajoAdicionalDialogState createState() => _TrabajoAdicionalDialogState();
@@ -119,11 +126,35 @@ class TrabajoAdicionalDialog extends StatefulWidget {
 class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
   final _formKey = GlobalKey<FormState>();
   final _instruccionController = TextEditingController();
-  final _productoController = TextEditingController();
+  String? _selectedProducto;
   final _temperaturaController = TextEditingController();
   final _tiempoController = TextEditingController();
   final _ctdExplosionController = TextEditingController();
   final _observacionController = TextEditingController();
+
+  List<Map<String, dynamic>> productos = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProductos();
+  }
+
+  Future<void> _loadProductos() async {
+    try {
+      final response = await widget.apiService.getProductosQuimicos();
+      if (response['success']) {
+        setState(() {
+          productos = List<Map<String, dynamic>>.from(response['data']);
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error cargando productos: $e');
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,11 +172,26 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                 decoration: InputDecoration(labelText: 'Instrucción'),
                 validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
               ),
-              TextFormField(
-                controller: _productoController,
-                decoration: InputDecoration(labelText: 'Producto'),
-                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
-              ),
+              if (isLoading)
+                CircularProgressIndicator()
+              else
+                DropdownButtonFormField<String>(
+                  value: _selectedProducto,
+                  decoration: InputDecoration(labelText: 'Producto'),
+                  items: productos.map((Map<String, dynamic> producto) {
+                    return DropdownMenuItem<String>(
+                      value: producto['codigo'] as String,
+                      child: Text(producto['nombre'] as String),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedProducto = value;
+                    });
+                  },
+                  validator: (value) =>
+                      value == null ? 'Campo requerido' : null,
+                ),
               TextFormField(
                 controller: _temperaturaController,
                 decoration: InputDecoration(labelText: 'Temperatura'),
@@ -180,10 +226,14 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              final selectedProductoData =
+                  productos.firstWhere((p) => p['codigo'] == _selectedProducto);
+
               Navigator.pop(context, {
                 'secuencia': widget.prevSecuencia + 0.1,
                 'instruccion': _instruccionController.text,
-                'producto': _productoController.text,
+                'producto': selectedProductoData['nombre'],
+                'codigoProducto': _selectedProducto,
                 'temperatura': double.parse(_temperaturaController.text),
                 'tiempo': int.parse(_tiempoController.text),
                 'ctdExplosion': _ctdExplosionController.text.isEmpty
@@ -202,6 +252,7 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
   }
 }
 
+// Pantalla Principal de Filtración
 class FiltracionFormulaciones extends StatefulWidget {
   final FormulationItem pesajeItem;
   final List<FormulationItem> bomboItems;
@@ -219,36 +270,14 @@ class FiltracionFormulaciones extends StatefulWidget {
 
 class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   late List<FormulationItem> items;
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-    // Initialize items from bomboItems
     items = List.from(widget.bomboItems)
       ..sort((a, b) => a.sec.compareTo(b.sec));
     context.read<TimerProvider>().initNotifications();
-    
-    // Load saved items
-    _loadItems();
-  }
-
-  // Method to save items to SharedPreferences
-  Future<void> _saveItems() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encodedData = jsonEncode(items.map((item) => item.toJson()).toList());
-    await prefs.setString('items_${widget.pesajeItem.nrOp}', encodedData);
-  }
-
-  // Method to load items from SharedPreferences
-  Future<void> _loadItems() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? encodedData = prefs.getString('items_${widget.pesajeItem.nrOp}');
-    if (encodedData != null) {
-      final List<dynamic> decodedData = jsonDecode(encodedData);
-      setState(() {
-        items = decodedData.map((item) => FormulationItem.fromJson(item)).toList();
-      });
-    }
   }
 
   String _formatTime(int seconds) {
@@ -266,136 +295,6 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     if (result != null && result.isNotEmpty) {
       setState(() {
         items[index].codigoEscaneado = result;
-        // Save changes
-        _saveItems();
-      });
-    }
-  }
-
-  Future<void> _showObservacionDialog(int index) async {
-    final TextEditingController _observacionController =
-        TextEditingController();
-    _observacionController.text = items[index].observacion ?? '';
-
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Observación'),
-          content: TextField(
-            controller: _observacionController,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  items[index].observacion = _observacionController.text;
-                  // Save changes
-                  _saveItems();
-                });
-                Navigator.pop(context);
-              },
-              child: Text('Aceptar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showCantidadExplosionDialog(int index) async {
-    final TextEditingController _cantidadController = TextEditingController();
-    _cantidadController.text = items[index].ctdExplosion?.toString() ?? '';
-
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Cantidad Explosión'),
-          content: TextField(
-            controller: _cantidadController,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  items[index].ctdExplosion =
-                      double.tryParse(_cantidadController.text);
-                  // Save changes
-                  _saveItems();
-                });
-                Navigator.pop(context);
-              },
-              child: Text('Aceptar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showTrabajoAdicionalDialog(FormulationItem prevItem) async {
-    final result = await showDialog(
-      context: context,
-      builder: (BuildContext context) => TrabajoAdicionalDialog(
-        prevSecuencia: prevItem.sec.toDouble(),
-      ),
-    );
-
-    if (result != null) {
-      setState(() {
-        // Crear nuevo FormulationItem con los datos del diálogo
-        final newItem = FormulationItem(
-          idPesagemItem: 0,
-          nrOp: prevItem.nrOp,
-          codProducto: prevItem.codProducto,
-          productoOp: prevItem.productoOp,
-          maquina: prevItem.maquina,
-          sec: double.parse('${prevItem.sec}.1').round(), // Esto asegura que sea 1.1, 2.1, etc.
-          operMaquina: result['instruccion'],
-          temperatura: result['temperatura'],
-          minutos: result['tiempo'],
-          situacion: prevItem.situacion,
-          fechaApertura: prevItem.fechaApertura,
-          productoPesaje: result['producto'],
-          ctdExplosion: result['ctdExplosion'],
-          observacion: result['observacion'],
-        );
-
-        // Encontrar el índice del item previo
-        final prevIndex = items.indexWhere((item) => item.sec == prevItem.sec);
-        
-        // Insertar el nuevo item justo después del item previo
-        items.insert(prevIndex + 1, newItem);
-        
-        // Reordenar la lista por secuencia para mantener el orden correcto
-        items.sort((a, b) {
-          // Convertir las secuencias a números decimales para comparar correctamente
-          double seqA = double.parse(a.sec.toString().contains('.') ? 
-            a.sec.toString() : '${a.sec}.0');
-          double seqB = double.parse(b.sec.toString().contains('.') ? 
-            b.sec.toString() : '${b.sec}.0');
-          return seqA.compareTo(seqB);
-        });
-
-        // Guardar los cambios
-        _saveItems();
       });
     }
   }
@@ -412,10 +311,122 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
           items[i].status = RowStatus.pending;
         }
       }
-      // Save changes
-      _saveItems();
     });
   }
+
+  Future<void> _showTrabajoAdicionalDialog(FormulationItem prevItem) async {
+    final result = await showDialog(
+      context: context,
+      builder: (BuildContext context) => TrabajoAdicionalDialog(
+        prevSecuencia: prevItem.sec.toDouble(),
+        apiService: _apiService,
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        final newItem = FormulationItem(
+          idPesagemItem: 0,
+          nrOp: prevItem.nrOp,
+          codProducto: result['codigoProducto'],
+          productoOp: prevItem.productoOp,
+          maquina: prevItem.maquina,
+          sec: double.parse('${prevItem.sec}.1').round(),
+          operMaquina: result['instruccion'],
+          temperatura: result['temperatura'],
+          minutos: result['tiempo'],
+          situacion: prevItem.situacion,
+          fechaApertura: prevItem.fechaApertura,
+          productoPesaje: result['producto'],
+          ctdExplosion: result['ctdExplosion'],
+          observacion: result['observacion'],
+        );
+
+        final prevIndex = items.indexWhere((item) => item.sec == prevItem.sec);
+        items.insert(prevIndex + 1, newItem);
+
+        items.sort((a, b) {
+          double seqA = double.parse(
+              a.sec.toString().contains('.') ? a.sec.toString() : '${a.sec}.0');
+          double seqB = double.parse(
+              b.sec.toString().contains('.') ? b.sec.toString() : '${b.sec}.0');
+          return seqA.compareTo(seqB);
+        });
+      });
+    }
+  }
+
+  Future<void> _showObservacionDialog(int index) async {
+  final TextEditingController _observacionController = TextEditingController();
+  _observacionController.text = items[index].observacion ?? '';
+
+  return showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Observación'),
+        content: TextField(
+          controller: _observacionController,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                items[index].observacion = _observacionController.text;
+              });
+              Navigator.pop(context);
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _showCantidadExplosionDialog(int index) async {
+  final TextEditingController _cantidadController = TextEditingController();
+  _cantidadController.text = items[index].ctdExplosion?.toString() ?? '';
+
+  return showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Cantidad Explosión'),
+        content: TextField(
+          controller: _cantidadController,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(),
+          ),
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                items[index].ctdExplosion = double.tryParse(_cantidadController.text);
+              });
+              Navigator.pop(context);
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -441,8 +452,9 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Orden de Produción: ${widget.pesajeItem.nrOp}',
-                            style: TextStyle(fontSize: 16)),
+                        Text('OP: ${widget.pesajeItem.nrOp}',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
                         SizedBox(height: 8),
                         Text('Producto: ${widget.pesajeItem.productoOp}',
                             style: TextStyle(fontSize: 16)),
@@ -503,8 +515,6 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                           timerProvider.stopTimer(idx);
                                         }
                                         _updateRowStatuses(idx);
-                                        // Save changes
-                                        _saveItems();
                                       });
                                     },
                                   )),
@@ -609,8 +619,6 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                             item.codigoEscaneado = null;
                           }
                           timerProvider.stopAllTimers();
-                          // Save changes after reset
-                          _saveItems();
                         });
                       },
                       style: ElevatedButton.styleFrom(
@@ -641,7 +649,6 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                       onPressed: () async {
                         if (items.isEmpty) return;
 
-                        // Mostrar diálogo para seleccionar después de qué secuencia agregar
                         final selectedItem = await showDialog<FormulationItem>(
                           context: context,
                           builder: (BuildContext context) {
