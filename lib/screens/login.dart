@@ -233,15 +233,15 @@ class _LoginState extends State<Login> {
                     : const Text('Ingresar'),
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _startTestTimer,
-                child: Text('Probar Notificación (20s)'),
-              ),
-              if (_remainingSeconds > 0)
-                Text(
-                  'Tiempo restante: ${(_remainingSeconds / 60).floor()}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}',
-                  style: TextStyle(fontSize: 16),
-                ),
+              // ElevatedButton(
+              //   onPressed: _startTestTimer,
+              //   child: Text('Probar Notificación (20s)'),
+              // ),
+              // if (_remainingSeconds > 0)
+              //   Text(
+              //     'Tiempo restante: ${(_remainingSeconds / 60).floor()}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}',
+              //     style: TextStyle(fontSize: 16),
+              //   ),
             ],
           ),
         ),
