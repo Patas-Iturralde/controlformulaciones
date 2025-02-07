@@ -39,6 +39,8 @@ dependencies:
   mobile_scanner: ^6.0.6
   permission_handler: ^11.3.1
   provider: ^6.1.2
+  shared_preferences: ^2.2.2  # Agregado para manejo del token
+  http: ^1.2.0  # Agregado para peticiones HTTP
 
 
 dev_dependencies:

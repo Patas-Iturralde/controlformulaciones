@@ -2,7 +2,8 @@ import 'package:controlformulaciones/screens/login.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
-import 'package:controlformulaciones/provider/timer_provider.dart'; // Asegúrate de crear este archivo
+import 'package:controlformulaciones/provider/timer_provider.dart';
+import 'package:controlformulaciones/provider/token_provider.dart'; // Nuevo import
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => TimerProvider()),
+        ChangeNotifierProvider(create: (_) => TokenProvider()), // Agregamos el TokenProvider
       ],
       child: const MyApp(),
     ),
