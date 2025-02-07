@@ -1,5 +1,7 @@
+// FiltracionFormulaciones.dart
 import 'package:controlformulaciones/screens/control_formulaciones.dart';
 import 'package:controlformulaciones/services/api_service.dart';
+import 'package:controlformulaciones/db_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
@@ -13,7 +15,14 @@ import 'dart:async';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 
-// Diálogo del Scanner
+// Importar paquetes para PDF
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+/// -------------------------
+/// Diálogo del Scanner
+/// -------------------------
 class ScanDialog extends StatefulWidget {
   @override
   _ScanDialogState createState() => _ScanDialogState();
@@ -109,7 +118,9 @@ class _ScanDialogState extends State<ScanDialog> {
   }
 }
 
-// Diálogo de Trabajo Adicional
+/// -------------------------
+/// Diálogo de Trabajo Adicional
+/// -------------------------
 class TrabajoAdicionalDialog extends StatefulWidget {
   final double prevSecuencia;
   final ApiService apiService;
@@ -252,7 +263,9 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
   }
 }
 
-// Pantalla Principal de Filtración
+/// -------------------------
+/// Pantalla Principal de Filtración
+/// -------------------------
 class FiltracionFormulaciones extends StatefulWidget {
   final FormulationItem pesajeItem;
   final List<FormulationItem> bomboItems;
@@ -357,76 +370,79 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   }
 
   Future<void> _showObservacionDialog(int index) async {
-  final TextEditingController _observacionController = TextEditingController();
-  _observacionController.text = items[index].observacion ?? '';
+    final TextEditingController _observacionController =
+        TextEditingController();
+    _observacionController.text = items[index].observacion ?? '';
 
-  return showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text('Observación'),
-        content: TextField(
-          controller: _observacionController,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(),
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Observación'),
+          content: TextField(
+            controller: _observacionController,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
           ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                items[index].observacion = _observacionController.text;
-              });
-              Navigator.pop(context);
-            },
-            child: Text('Aceptar'),
-          ),
-        ],
-      );
-    },
-  );
-}
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  items[index].observacion = _observacionController.text;
+                });
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-Future<void> _showCantidadExplosionDialog(int index) async {
-  final TextEditingController _cantidadController = TextEditingController();
-  _cantidadController.text = items[index].ctdExplosion?.toString() ?? '';
+  Future<void> _showCantidadExplosionDialog(int index) async {
+    final TextEditingController _cantidadController =
+        TextEditingController();
+    _cantidadController.text = items[index].ctdExplosion?.toString() ?? '';
 
-  return showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text('Cantidad Explosión'),
-        content: TextField(
-          controller: _cantidadController,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(),
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Cantidad Explosión'),
+          content: TextField(
+            controller: _cantidadController,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
           ),
-          keyboardType: TextInputType.numberWithOptions(decimal: true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                items[index].ctdExplosion = double.tryParse(_cantidadController.text);
-              });
-              Navigator.pop(context);
-            },
-            child: Text('Aceptar'),
-          ),
-        ],
-      );
-    },
-  );
-}
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  items[index].ctdExplosion =
+                      double.tryParse(_cantidadController.text);
+                });
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -631,9 +647,119 @@ Future<void> _showCantidadExplosionDialog(int index) async {
                       ),
                     ),
                     SizedBox(width: 10),
+                    // Botón Fin Proceso: Guarda en SQLite, genera PDF y limpia la base de datos.
                     ElevatedButton(
-                      onPressed: () {
-                        // Implementar lógica para fin de proceso
+                      onPressed: () async {
+                        final dbHelper = DBHelper();
+
+                        // Construir el registro del proceso
+                        Map<String, dynamic> proceso = {
+                          'nrOp': widget.pesajeItem.nrOp,
+                          'maquina': widget.pesajeItem.maquina,
+                          'producto': widget.pesajeItem.productoOp,
+                          'fecha_guardado': DateTime.now().toIso8601String(),
+                          'fecha_proceso': widget.pesajeItem.fechaApertura,
+                        };
+
+                        // Insertar el proceso y obtener su ID
+                        int procesoId = await dbHelper.insertProceso(proceso);
+
+                        // Insertar cada secuencia asociada al proceso
+                        for (var item in items) {
+                          Map<String, dynamic> secuencia = {
+                            'proceso_id': procesoId,
+                            'secuencia': item.sec,
+                            'instruccion': item.operMaquina,
+                            'producto': item.productoPesaje,
+                            'temperatura': item.temperatura,
+                            'tiempo': item.minutos,
+                            'ctd_explosion': item.ctdExplosion,
+                            'observacion': item.observacion,
+                            'codigo_escaneado': item.codigoEscaneado,
+                          };
+                          await dbHelper.insertSecuencia(secuencia);
+                        }
+
+                        // Recuperar las secuencias asociadas al proceso
+                        List<Map<String, dynamic>> secuencias =
+                            await dbHelper.getSecuencias(procesoId);
+
+                        // Generar el documento PDF
+                        final pdf = pw.Document();
+                        pdf.addPage(
+                          pw.Page(
+                            build: (pw.Context context) {
+                              return pw.Column(
+                                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                children: [
+                                  pw.Text('Proceso ID: $procesoId',
+                                      style: pw.TextStyle(fontSize: 18)),
+                                  pw.Text('OP: ${widget.pesajeItem.nrOp}'),
+                                  pw.Text('Maquina: ${widget.pesajeItem.maquina}'),
+                                  pw.Text('Producto: ${widget.pesajeItem.productoOp}'),
+                                  pw.Text('Fecha Proceso: ${widget.pesajeItem.fechaApertura}'),
+                                  pw.Text('Fecha Guardado: ${DateTime.now().toIso8601String()}'),
+                                  pw.SizedBox(height: 20),
+                                  pw.Table.fromTextArray(
+                                    context: context,
+                                    data: <List<String>>[
+                                      <String>[
+                                        'Secuencia',
+                                        'Instrucción',
+                                        'Producto',
+                                        'Temperatura',
+                                        'Tiempo',
+                                        'Ctd Explosion',
+                                        'Observación',
+                                        'Código Escaneado'
+                                      ],
+                                      ...secuencias.map<List<String>>((seq) => [
+                                            seq['secuencia'].toString(),
+                                            seq['instruccion'] ?? '',
+                                            seq['producto'] ?? '',
+                                            seq['temperatura'].toString(),
+                                            seq['tiempo'].toString(),
+                                            seq['ctd_explosion'] != null
+                                                ? seq['ctd_explosion'].toString()
+                                                : '',
+                                            seq['observacion'] != null
+                                                ? seq['observacion']
+                                                : '',
+                                            seq['codigo_escaneado'] != null
+                                                ? seq['codigo_escaneado']
+                                                : '',
+                                          ]).toList(),
+                                    ],
+                                  )
+                                ],
+                              );
+                            },
+                          ),
+                        );
+
+                        // Mostrar la vista previa y permitir la impresión/guardado del PDF
+                        await Printing.layoutPdf(
+                            onLayout: (PdfPageFormat format) async => pdf.save());
+
+                        // Limpiar los datos de las tablas
+                        await dbHelper.deleteAllData();
+
+                        // Reiniciar la UI (opcional)
+                        setState(() {
+                          for (var item in items) {
+                            item.checked = false;
+                            item.status = RowStatus.pending;
+                            item.codigoEscaneado = null;
+                          }
+                          timerProvider.stopAllTimers();
+                        });
+
+                        // Notificar al usuario
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Proceso guardado, PDF generado y datos limpiados.')),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         padding:

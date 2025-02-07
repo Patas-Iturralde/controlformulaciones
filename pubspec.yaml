@@ -41,6 +41,9 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.2.2  # Agregado para manejo del token
   http: ^1.2.0  # Agregado para peticiones HTTP
+  sqflite: ^2.4.1
+  pdf: ^3.11.2
+  printing: ^5.14.0
 
 
 dev_dependencies:
