@@ -1,7 +1,7 @@
 // lib/provider/token_provider.dart
 
 import 'package:flutter/foundation.dart';
-import '../token_service.dart';
+import '../services/token_service.dart';
 
 class TokenProvider extends ChangeNotifier {
   late TokenService _tokenService;
