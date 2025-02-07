@@ -663,6 +663,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
 
                         // Insertar el proceso y obtener su ID
                         int procesoId = await dbHelper.insertProceso(proceso);
+                        print("Proceso insertado con ID: $procesoId");
 
                         // Insertar cada secuencia asociada al proceso
                         for (var item in items) {
@@ -678,11 +679,13 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                             'codigo_escaneado': item.codigoEscaneado,
                           };
                           await dbHelper.insertSecuencia(secuencia);
+                          print("Secuencia insertada: ${secuencia.toString()}");
                         }
 
                         // Recuperar las secuencias asociadas al proceso
                         List<Map<String, dynamic>> secuencias =
                             await dbHelper.getSecuencias(procesoId);
+                        print("Secuencias recuperadas: ${secuencias.length}");
 
                         // Generar el documento PDF
                         final pdf = pw.Document();
@@ -739,10 +742,12 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
 
                         // Mostrar la vista previa y permitir la impresión/guardado del PDF
                         await Printing.layoutPdf(
-                            onLayout: (PdfPageFormat format) async => pdf.save());
+                          onLayout: (PdfPageFormat format) async => pdf.save(),
+                        );
 
                         // Limpiar los datos de las tablas
                         await dbHelper.deleteAllData();
+                        print("Datos limpiados de la base de datos");
 
                         // Reiniciar la UI (opcional)
                         setState(() {
@@ -757,8 +762,10 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                         // Notificar al usuario
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content: Text(
-                                  'Proceso guardado, PDF generado y datos limpiados.')),
+                            content: Text(
+                              'Proceso guardado, PDF generado y datos limpiados.',
+                            ),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
