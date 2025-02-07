@@ -407,8 +407,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   }
 
   Future<void> _showCantidadExplosionDialog(int index) async {
-    final TextEditingController _cantidadController =
-        TextEditingController();
+    final TextEditingController _cantidadController = TextEditingController();
     _cantidadController.text = items[index].ctdExplosion?.toString() ?? '';
 
     return showDialog(
@@ -687,51 +686,101 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                             await dbHelper.getSecuencias(procesoId);
                         print("Secuencias recuperadas: ${secuencias.length}");
 
-                        // Generar el documento PDF usando MultiPage para permitir múltiples páginas
+                        // Generar el documento PDF
                         final pdf = pw.Document();
                         pdf.addPage(
                           pw.MultiPage(
-                            build: (pw.Context context) => <pw.Widget>[
-                              pw.Text('Proceso ID: $procesoId',
-                                  style: pw.TextStyle(fontSize: 18)),
-                              pw.Text('OP: ${widget.pesajeItem.nrOp}'),
-                              pw.Text('Maquina: ${widget.pesajeItem.maquina}'),
-                              pw.Text('Producto: ${widget.pesajeItem.productoOp}'),
-                              pw.Text(
-                                  'Fecha Proceso: ${widget.pesajeItem.fechaApertura}'),
-                              pw.Text(
-                                  'Fecha Guardado: ${DateTime.now().toIso8601String()}'),
-                              pw.SizedBox(height: 20),
-                              pw.Table.fromTextArray(
-                                context: context,
-                                data: <List<String>>[
-                                  <String>[
+                            build: (pw.Context context) {
+                              return [
+                                pw.Header(
+                                  level: 0,
+                                  child: pw.Column(
+                                    crossAxisAlignment:
+                                        pw.CrossAxisAlignment.start,
+                                    children: [
+                                      pw.Text('Detalle de Proceso',
+                                          style: pw.TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: pw.FontWeight.bold)),
+                                      pw.Divider(),
+                                      pw.Text('Proceso ID: $procesoId',
+                                          style: pw.TextStyle(fontSize: 16)),
+                                      pw.Text('OP: ${widget.pesajeItem.nrOp}',
+                                          style: pw.TextStyle(fontSize: 16)),
+                                      pw.Text(
+                                          'Máquina: ${widget.pesajeItem.maquina}',
+                                          style: pw.TextStyle(fontSize: 16)),
+                                      pw.Text(
+                                          'Producto: ${widget.pesajeItem.productoOp}',
+                                          style: pw.TextStyle(fontSize: 16)),
+                                      pw.Text(
+                                          'Fecha Proceso: ${widget.pesajeItem.fechaApertura}',
+                                          style: pw.TextStyle(fontSize: 16)),
+                                      pw.Text(
+                                          'Fecha Guardado: ${DateTime.now().toIso8601String()}',
+                                          style: pw.TextStyle(fontSize: 16)),
+                                    ],
+                                  ),
+                                ),
+                                pw.SizedBox(height: 20),
+                                pw.TableHelper.fromTextArray(
+                                  context: context,
+                                  border: pw.TableBorder.all(
+                                      color: PdfColors.black),
+                                  headerStyle: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold),
+                                  headerDecoration: pw.BoxDecoration(
+                                      color: PdfColors.grey300),
+                                  cellStyle: pw.TextStyle(fontSize: 10),
+                                  cellAlignments: {
+                                    0: pw.Alignment.centerLeft,
+                                    1: pw.Alignment.centerLeft,
+                                    2: pw.Alignment.centerLeft,
+                                    3: pw.Alignment.center,
+                                    4: pw.Alignment.center,
+                                    5: pw.Alignment.center,
+                                    6: pw.Alignment.centerLeft,
+                                    7: pw.Alignment.centerLeft,
+                                  },
+                                  headers: [
                                     'Secuencia',
                                     'Instrucción',
                                     'Producto',
                                     'Temperatura',
                                     'Tiempo',
-                                    'Ctd Explosion',
+                                    'Ctd Explosión',
                                     'Observación',
                                     'Código Escaneado'
                                   ],
-                                  ...secuencias.map<List<String>>((seq) => [
-                                        seq['secuencia'].toString(),
-                                        seq['instruccion'] ?? '',
-                                        seq['producto'] ?? '',
-                                        seq['temperatura'].toString(),
-                                        seq['tiempo'].toString(),
-                                        seq['ctd_explosion'] != null
-                                            ? seq['ctd_explosion'].toString()
-                                            : '',
-                                        seq['observacion'] ?? '',
-                                        seq['codigo_escaneado'] ?? '',
-                                      ]).toList(),
-                                ],
-                              )
-                            ],
+                                  data: items
+                                      .map<List<String>>((item) => [
+                                            item.sec.toString(),
+                                            item.operMaquina ?? '',
+                                            item.productoPesaje ?? '',
+                                            '${item.temperatura}°C',
+                                            '${item.minutos} min',
+                                            item.ctdExplosion?.toString() ?? '',
+                                            item.observacion ?? '',
+                                            item.codigoEscaneado ?? '',
+                                          ])
+                                      .toList(),
+                                ),
+                              ];
+                            },
+                            footer: (pw.Context context) {
+                              return pw.Container(
+                                alignment: pw.Alignment.centerRight,
+                                margin: const pw.EdgeInsets.only(top: 10),
+                                child: pw.Text(
+                                  'Página ${context.pageNumber} de ${context.pagesCount}',
+                                  style: pw.TextStyle(fontSize: 10),
+                                ),
+                              );
+                            },
                           ),
                         );
+
+                        
 
                         // Mostrar la vista previa y permitir la impresión/guardado del PDF
                         await Printing.layoutPdf(
