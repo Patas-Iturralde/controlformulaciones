@@ -63,6 +63,27 @@ class FormulationItem {
       ctdExplosion: json['CTD_EXPLOSION']?.toDouble(),
     );
   }
+  Map<String, dynamic> toJson() {
+    return {
+      'ID_PESAGEM_ITEM': idPesagemItem,
+      'NR_OP': nrOp,
+      'COD_PRODUCTO': codProducto,
+      'PRODUCTO_OP': productoOp,
+      'MAQUINA': maquina,
+      'SEC': sec,
+      'OPER_MAQUINA': operMaquina,
+      'TEMPERATURA': temperatura,
+      'MINUTOS': minutos,
+      'SITUACION': situacion,
+      'FECHA_APERTURA': fechaApertura,
+      'PRODUCTO_PESAJE': productoPesaje,
+      'CHECKED': checked,
+      'STATUS': status.index,
+      'CODIGO_ESCANEADO': codigoEscaneado,
+      'OBSERVACION': observacion,
+      'CTD_EXPLOSION': ctdExplosion,
+    };
+  }
 }
 
 class ControlFormulaciones extends StatefulWidget {

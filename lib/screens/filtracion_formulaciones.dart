@@ -6,6 +6,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:controlformulaciones/provider/timer_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
@@ -221,9 +223,32 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   @override
   void initState() {
     super.initState();
+    // Initialize items from bomboItems
     items = List.from(widget.bomboItems)
       ..sort((a, b) => a.sec.compareTo(b.sec));
     context.read<TimerProvider>().initNotifications();
+    
+    // Load saved items
+    _loadItems();
+  }
+
+  // Method to save items to SharedPreferences
+  Future<void> _saveItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encodedData = jsonEncode(items.map((item) => item.toJson()).toList());
+    await prefs.setString('items_${widget.pesajeItem.nrOp}', encodedData);
+  }
+
+  // Method to load items from SharedPreferences
+  Future<void> _loadItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? encodedData = prefs.getString('items_${widget.pesajeItem.nrOp}');
+    if (encodedData != null) {
+      final List<dynamic> decodedData = jsonDecode(encodedData);
+      setState(() {
+        items = decodedData.map((item) => FormulationItem.fromJson(item)).toList();
+      });
+    }
   }
 
   String _formatTime(int seconds) {
@@ -241,6 +266,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     if (result != null && result.isNotEmpty) {
       setState(() {
         items[index].codigoEscaneado = result;
+        // Save changes
+        _saveItems();
       });
     }
   }
@@ -271,6 +298,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
               onPressed: () {
                 setState(() {
                   items[index].observacion = _observacionController.text;
+                  // Save changes
+                  _saveItems();
                 });
                 Navigator.pop(context);
               },
@@ -308,6 +337,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                 setState(() {
                   items[index].ctdExplosion =
                       double.tryParse(_cantidadController.text);
+                  // Save changes
+                  _saveItems();
                 });
                 Navigator.pop(context);
               },
@@ -320,51 +351,54 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   }
 
   Future<void> _showTrabajoAdicionalDialog(FormulationItem prevItem) async {
-  final result = await showDialog(
-    context: context,
-    builder: (BuildContext context) => TrabajoAdicionalDialog(
-      prevSecuencia: prevItem.sec.toDouble(),
-    ),
-  );
+    final result = await showDialog(
+      context: context,
+      builder: (BuildContext context) => TrabajoAdicionalDialog(
+        prevSecuencia: prevItem.sec.toDouble(),
+      ),
+    );
 
-  if (result != null) {
-    setState(() {
-      // Crear nuevo FormulationItem con los datos del diálogo
-      final newItem = FormulationItem(
-        idPesagemItem: 0,
-        nrOp: prevItem.nrOp,
-        codProducto: prevItem.codProducto,
-        productoOp: prevItem.productoOp,
-        maquina: prevItem.maquina,
-        sec: double.parse('${prevItem.sec}.1').round(), // Esto asegura que sea 1.1, 2.1, etc.
-        operMaquina: result['instruccion'],
-        temperatura: result['temperatura'],
-        minutos: result['tiempo'],
-        situacion: prevItem.situacion,
-        fechaApertura: prevItem.fechaApertura,
-        productoPesaje: result['producto'],
-        ctdExplosion: result['ctdExplosion'],
-        observacion: result['observacion'],
-      );
+    if (result != null) {
+      setState(() {
+        // Crear nuevo FormulationItem con los datos del diálogo
+        final newItem = FormulationItem(
+          idPesagemItem: 0,
+          nrOp: prevItem.nrOp,
+          codProducto: prevItem.codProducto,
+          productoOp: prevItem.productoOp,
+          maquina: prevItem.maquina,
+          sec: double.parse('${prevItem.sec}.1').round(), // Esto asegura que sea 1.1, 2.1, etc.
+          operMaquina: result['instruccion'],
+          temperatura: result['temperatura'],
+          minutos: result['tiempo'],
+          situacion: prevItem.situacion,
+          fechaApertura: prevItem.fechaApertura,
+          productoPesaje: result['producto'],
+          ctdExplosion: result['ctdExplosion'],
+          observacion: result['observacion'],
+        );
 
-      // Encontrar el índice del item previo
-      final prevIndex = items.indexWhere((item) => item.sec == prevItem.sec);
-      
-      // Insertar el nuevo item justo después del item previo
-      items.insert(prevIndex + 1, newItem);
-      
-      // Reordenar la lista por secuencia para mantener el orden correcto
-      items.sort((a, b) {
-        // Convertir las secuencias a números decimales para comparar correctamente
-        double seqA = double.parse(a.sec.toString().contains('.') ? 
-          a.sec.toString() : '${a.sec}.0');
-        double seqB = double.parse(b.sec.toString().contains('.') ? 
-          b.sec.toString() : '${b.sec}.0');
-        return seqA.compareTo(seqB);
+        // Encontrar el índice del item previo
+        final prevIndex = items.indexWhere((item) => item.sec == prevItem.sec);
+        
+        // Insertar el nuevo item justo después del item previo
+        items.insert(prevIndex + 1, newItem);
+        
+        // Reordenar la lista por secuencia para mantener el orden correcto
+        items.sort((a, b) {
+          // Convertir las secuencias a números decimales para comparar correctamente
+          double seqA = double.parse(a.sec.toString().contains('.') ? 
+            a.sec.toString() : '${a.sec}.0');
+          double seqB = double.parse(b.sec.toString().contains('.') ? 
+            b.sec.toString() : '${b.sec}.0');
+          return seqA.compareTo(seqB);
+        });
+
+        // Guardar los cambios
+        _saveItems();
       });
-    });
+    }
   }
-}
 
   void _updateRowStatuses(int currentIndex) {
     setState(() {
@@ -378,6 +412,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
           items[i].status = RowStatus.pending;
         }
       }
+      // Save changes
+      _saveItems();
     });
   }
 
@@ -406,8 +442,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Orden de Produción: ${widget.pesajeItem.nrOp}',
-                            style: TextStyle(
-                                fontSize: 16)),
+                            style: TextStyle(fontSize: 16)),
                         SizedBox(height: 8),
                         Text('Producto: ${widget.pesajeItem.productoOp}',
                             style: TextStyle(fontSize: 16)),
@@ -468,6 +503,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                           timerProvider.stopTimer(idx);
                                         }
                                         _updateRowStatuses(idx);
+                                        // Save changes
+                                        _saveItems();
                                       });
                                     },
                                   )),
@@ -572,6 +609,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                             item.codigoEscaneado = null;
                           }
                           timerProvider.stopAllTimers();
+                          // Save changes after reset
+                          _saveItems();
                         });
                       },
                       style: ElevatedButton.styleFrom(
