@@ -136,20 +136,25 @@ class TrabajoAdicionalDialog extends StatefulWidget {
 
 class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _instruccionController = TextEditingController();
-  String? _selectedProducto;
   final _temperaturaController = TextEditingController();
   final _tiempoController = TextEditingController();
   final _ctdExplosionController = TextEditingController();
   final _observacionController = TextEditingController();
+  final _operacionController = TextEditingController();
+  final _productoController = TextEditingController();
 
+  Map<String, dynamic>? _selectedOperacion;
+  Map<String, dynamic>? _selectedProducto;
   List<Map<String, dynamic>> productos = [];
-  bool isLoading = true;
+  List<Map<String, dynamic>> operaciones = [];
+  bool isLoadingProductos = true;
+  bool isLoadingOperaciones = true;
 
   @override
   void initState() {
     super.initState();
     _loadProductos();
+    _loadOperaciones();
   }
 
   Future<void> _loadProductos() async {
@@ -158,12 +163,27 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
       if (response['success']) {
         setState(() {
           productos = List<Map<String, dynamic>>.from(response['data']);
-          isLoading = false;
+          isLoadingProductos = false;
         });
       }
     } catch (e) {
       print('Error cargando productos: $e');
-      setState(() => isLoading = false);
+      setState(() => isLoadingProductos = false);
+    }
+  }
+
+  Future<void> _loadOperaciones() async {
+    try {
+      final response = await widget.apiService.getOperaciones();
+      if (response['success']) {
+        setState(() {
+          operaciones = List<Map<String, dynamic>>.from(response['data']);
+          isLoadingOperaciones = false;
+        });
+      }
+    } catch (e) {
+      print('Error cargando operaciones: $e');
+      setState(() => isLoadingOperaciones = false);
     }
   }
 
@@ -178,51 +198,120 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Secuencia: ${widget.prevSecuencia + 0.1}'),
-              TextFormField(
-                controller: _instruccionController,
-                decoration: InputDecoration(labelText: 'Instrucción'),
-                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
-              ),
-              if (isLoading)
+              if (isLoadingOperaciones)
                 CircularProgressIndicator()
               else
-                DropdownButtonFormField<String>(
-                  value: _selectedProducto,
-                  decoration: InputDecoration(labelText: 'Producto'),
-                  items: productos.map((Map<String, dynamic> producto) {
-                    return DropdownMenuItem<String>(
-                      value: producto['codigo'] as String,
-                      child: Text(producto['nombre'] as String),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedProducto = value;
+                Autocomplete<Map<String, dynamic>>(
+                  initialValue: TextEditingValue(
+                    text: _selectedOperacion?['nm_operacao_maquina'] ?? ''
+                  ),
+                  displayStringForOption: (Map<String, dynamic> option) => 
+                    option['nm_operacao_maquina'],
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text == '') {
+                      return operaciones;
+                    }
+                    return operaciones.where((operacion) {
+                      return operacion['nm_operacao_maquina']
+                          .toString()
+                          .toLowerCase()
+                          .contains(textEditingValue.text.toLowerCase());
                     });
                   },
-                  validator: (value) =>
-                      value == null ? 'Campo requerido' : null,
+                  onSelected: (Map<String, dynamic> selection) {
+                    setState(() {
+                      _selectedOperacion = selection;
+                      _operacionController.text = selection['nm_operacao_maquina'];
+                    });
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar Operación',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                          _selectedOperacion == null ? 'Seleccione una operación' : null,
+                    );
+                  },
                 ),
+              SizedBox(height: 16),
+              if (isLoadingProductos)
+                CircularProgressIndicator()
+              else
+                Autocomplete<Map<String, dynamic>>(
+                  initialValue: TextEditingValue(
+                    text: _selectedProducto?['nombre'] ?? ''
+                  ),
+                  displayStringForOption: (Map<String, dynamic> option) => 
+                    '${option['codigo']} - ${option['nombre']}',
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text == '') {
+                      return productos;
+                    }
+                    return productos.where((producto) {
+                      final searchText = textEditingValue.text.toLowerCase();
+                      return producto['nombre'].toString().toLowerCase().contains(searchText) ||
+                             producto['codigo'].toString().toLowerCase().contains(searchText);
+                    });
+                  },
+                  onSelected: (Map<String, dynamic> selection) {
+                    setState(() {
+                      _selectedProducto = selection;
+                      _productoController.text = selection['nombre'];
+                    });
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar Producto',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                          _selectedProducto == null ? 'Seleccione un producto' : null,
+                    );
+                  },
+                ),
+              SizedBox(height: 16),
               TextFormField(
                 controller: _temperaturaController,
-                decoration: InputDecoration(labelText: 'Temperatura'),
+                decoration: InputDecoration(
+                  labelText: 'Temperatura',
+                  border: OutlineInputBorder(),
+                ),
                 keyboardType: TextInputType.number,
                 validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
               ),
+              SizedBox(height: 16),
               TextFormField(
                 controller: _tiempoController,
-                decoration: InputDecoration(labelText: 'Tiempo (minutos)'),
+                decoration: InputDecoration(
+                  labelText: 'Tiempo (minutos)',
+                  border: OutlineInputBorder(),
+                ),
                 keyboardType: TextInputType.number,
                 validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
               ),
+              SizedBox(height: 16),
               TextFormField(
                 controller: _ctdExplosionController,
-                decoration: InputDecoration(labelText: 'Cantidad Explosión'),
+                decoration: InputDecoration(
+                  labelText: 'Cantidad Explosión',
+                  border: OutlineInputBorder(),
+                ),
                 keyboardType: TextInputType.number,
               ),
+              SizedBox(height: 16),
               TextFormField(
                 controller: _observacionController,
-                decoration: InputDecoration(labelText: 'Observación'),
+                decoration: InputDecoration(
+                  labelText: 'Observación',
+                  border: OutlineInputBorder(),
+                ),
                 maxLines: 3,
               ),
             ],
@@ -237,14 +326,11 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              final selectedProductoData =
-                  productos.firstWhere((p) => p['codigo'] == _selectedProducto);
-
               Navigator.pop(context, {
                 'secuencia': widget.prevSecuencia + 0.1,
-                'instruccion': _instruccionController.text,
-                'producto': selectedProductoData['nombre'],
-                'codigoProducto': _selectedProducto,
+                'instruccion': _selectedOperacion!['nm_operacao_maquina'],
+                'producto': _selectedProducto!['nombre'],
+                'codigoProducto': _selectedProducto!['codigo'],
                 'temperatura': double.parse(_temperaturaController.text),
                 'tiempo': int.parse(_tiempoController.text),
                 'ctdExplosion': _ctdExplosionController.text.isEmpty

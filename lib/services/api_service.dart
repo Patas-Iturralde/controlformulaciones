@@ -162,4 +162,58 @@ class ApiService {
       };
     }
   }
+
+  // Agregar este método a tu clase ApiService existente
+
+Future<Map<String, dynamic>> getOperaciones() async {
+    final url = Uri.parse("$baseUrl/api/operaciones");
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      
+      if (response.statusCode == 401) {
+        // Token expirado o inválido
+        final tokenService = await TokenService.getInstance();
+        await tokenService.logout();
+        return {
+          "success": false,
+          "data": null,
+          "message": "Sesión expirada",
+          "sessionExpired": true
+        };
+      }
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (data["success"]) {
+          return {
+            "success": true,
+            "data": data["data"], // Lista de operaciones
+            "total": data["total"],
+            "message": null,
+          };
+        } else {
+          return {
+            "success": false,
+            "data": [],
+            "message": data["message"] ?? "No hay operaciones disponibles",
+          };
+        }
+      } else {
+        return {
+          "success": false,
+          "data": null,
+          "message": "Error al obtener operaciones",
+        };
+      }
+    } catch (e) {
+      return {
+        "success": false,
+        "data": null,
+        "message": "Error de conexión: $e",
+      };
+    }
+}
 }
