@@ -9,6 +9,7 @@ enum RowStatus { completed, current, skipped, pending }
 class FormulationItem {
   final int idPesagemItem;
   final int nrOp;
+  final int numeroPesaje;
   final String codProducto;
   final String productoOp;
   final String maquina;
@@ -28,6 +29,7 @@ class FormulationItem {
   FormulationItem({
     required this.idPesagemItem,
     required this.nrOp,
+    required this.numeroPesaje,
     required this.codProducto,
     required this.productoOp,
     required this.maquina,
@@ -49,6 +51,7 @@ class FormulationItem {
     return FormulationItem(
       idPesagemItem: json['ID_PESAGEM_ITEM'],
       nrOp: json['NR_OP'],
+      numeroPesaje: json['NR_PESAJE'],
       codProducto: json['COD_PRODUCTO'],
       productoOp: json['PRODUCTO_OP'],
       maquina: json['MAQUINA'],
@@ -67,6 +70,7 @@ class FormulationItem {
     return {
       'ID_PESAGEM_ITEM': idPesagemItem,
       'NR_OP': nrOp,
+      'NR_PESAJE': numeroPesaje,
       'COD_PRODUCTO': codProducto,
       'PRODUCTO_OP': productoOp,
       'MAQUINA': maquina,
@@ -146,77 +150,83 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
   }
 
   Widget _buildItemList() {
-    if (isLoading) return Center(child: CircularProgressIndicator());
-    if (_filteredItems.isEmpty)
-      return Center(child: Text('No hay pesajes activos'));
+  if (isLoading) return Center(child: CircularProgressIndicator());
+  if (_filteredItems.isEmpty)
+    return Center(child: Text('No hay pesajes activos'));
 
-    var groupedItems =
-        groupBy(_filteredItems, (FormulationItem item) => item.maquina);
+  // Agrupamos por máquina y ordenamos los bombos
+  var groupedItems = groupBy(_filteredItems, (FormulationItem item) => item.maquina);
+  var sortedBombos = groupedItems.keys.toList()..sort((a, b) {
+    final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+    final numB = int.tryParse(b.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+    return numA.compareTo(numB);
+  });
 
-    return ListView.builder(
-      itemCount: groupedItems.length,
-      itemBuilder: (context, index) {
-        String bombo = groupedItems.keys.elementAt(index);
-        List<FormulationItem> bomboItems = groupedItems[bombo]!;
+  return ListView.builder(
+    itemCount: sortedBombos.length,
+    itemBuilder: (context, index) {
+      String bombo = sortedBombos[index];
+      List<FormulationItem> bomboItems = groupedItems[bombo]!;
 
-        var groupedByPesaje =
-            groupBy(bomboItems, (FormulationItem item) => item.nrOp)
-                .map((key, value) => MapEntry(key, value.first));
+      var groupedByPesaje = groupBy(
+        bomboItems, 
+        (FormulationItem item) => item.nrOp
+      ).map((key, value) => MapEntry(key, value.first));
 
-        return ExpansionTile(
-          title: Text(bombo, style: TextStyle(fontWeight: FontWeight.bold)),
-          children: groupedByPesaje.entries
-              .map((pesajeGroup) => Card(
-                    child: ListTile(
-                      title: Text('Pesaje: ${pesajeGroup.key}'),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                              'Secuencia actual: ${bomboItems.where((item) => item.nrOp == pesajeGroup.key && item.status == RowStatus.current).firstOrNull?.sec ?? 'No iniciado'}'),
-                          Text(
-                              'Fecha: ${pesajeGroup.value.fechaApertura?.split('T')[0]}'),
-                        ],
-                      ),
-                      trailing: IconButton(
-                        onPressed: () async {
-                          final updatedItems =
-                              await Navigator.push<List<FormulationItem>>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FiltracionFormulaciones(
-                                pesajeItem: pesajeGroup.value,
-                                bomboItems: bomboItems
-                                    .where(
-                                        (item) => item.nrOp == pesajeGroup.key)
-                                    .toList(),
-                              ),
-                            ),
-                          );
-
-                          if (updatedItems != null) {
-                            setState(() {
-                              for (var updatedItem in updatedItems) {
-                                final index = items.indexWhere((item) =>
-                                    item.idPesagemItem ==
-                                    updatedItem.idPesagemItem);
-                                if (index != -1) {
-                                  items[index] = updatedItem;
-                                }
-                              }
-                              _filteredItems = items;
-                            });
-                          }
-                        },
-                        icon: Icon(Icons.arrow_forward_ios),
-                      ),
+      return ExpansionTile(
+        title: Text(bombo, style: TextStyle(fontWeight: FontWeight.bold)),
+        children: groupedByPesaje.entries
+            .map((pesajeGroup) => Card(
+                  child: ListTile(
+                    title: Text('Pesaje: ${pesajeGroup.key}'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            'Secuencia actual: ${bomboItems.where((item) => item.nrOp == pesajeGroup.key && item.status == RowStatus.current).firstOrNull?.sec ?? 'No iniciado'}'),
+                        Text(
+                            'Fecha: ${pesajeGroup.value.fechaApertura?.split('T')[0]}'),
+                      ],
                     ),
-                  ))
-              .toList(),
-        );
-      },
-    );
-  }
+                    trailing: IconButton(
+                      onPressed: () async {
+                        final updatedItems =
+                            await Navigator.push<List<FormulationItem>>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FiltracionFormulaciones(
+                              pesajeItem: pesajeGroup.value,
+                              bomboItems: bomboItems
+                                  .where(
+                                      (item) => item.nrOp == pesajeGroup.key)
+                                  .toList(),
+                            ),
+                          ),
+                        );
+
+                        if (updatedItems != null) {
+                          setState(() {
+                            for (var updatedItem in updatedItems) {
+                              final index = items.indexWhere((item) =>
+                                  item.idPesagemItem ==
+                                  updatedItem.idPesagemItem);
+                              if (index != -1) {
+                                items[index] = updatedItem;
+                              }
+                            }
+                            _filteredItems = items;
+                          });
+                        }
+                      },
+                      icon: Icon(Icons.arrow_forward_ios),
+                    ),
+                  ),
+                ))
+            .toList(),
+      );
+    },
+  );
+}
 
   List<Widget> _buildDrawerItems() {
     List<Widget> items = [
@@ -333,7 +343,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Buscar por producto, máquina u OP',
+                hintText: 'Buscar por OP o pesaje',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25.0),

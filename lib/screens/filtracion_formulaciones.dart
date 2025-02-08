@@ -341,6 +341,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
         final newItem = FormulationItem(
           idPesagemItem: 0,
           nrOp: prevItem.nrOp,
+          numeroPesaje: prevItem.numeroPesaje,
           codProducto: result['codigoProducto'],
           productoOp: prevItem.productoOp,
           maquina: prevItem.maquina,
@@ -476,7 +477,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                         Text(
                             'Código producto: ${widget.pesajeItem.codProducto}',
                             style: TextStyle(fontSize: 16)),
-                        Text('Número de pesaje: ${widget.pesajeItem.nrOp}',
+                        Text('Número de pesaje: ${widget.pesajeItem.numeroPesaje}',
                             style: TextStyle(fontSize: 16)),
                         SizedBox(height: 16),
                         SingleChildScrollView(
