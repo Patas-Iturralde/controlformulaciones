@@ -1,7 +1,4 @@
-// FiltracionFormulaciones.dart
-import 'package:controlformulaciones/screens/control_formulaciones.dart';
-import 'package:controlformulaciones/services/api_service.dart';
-import 'package:controlformulaciones/db_helper.dart';
+// filtracion_formulaciones.dart
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
@@ -9,20 +6,17 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:controlformulaciones/provider/timer_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'dart:async';
-import 'dart:io';
-import 'package:permission_handler/permission_handler.dart';
-
-// Importar paquetes para PDF
+import 'package:controlformulaciones/db_helper.dart';
+import 'package:controlformulaciones/screens/control_formulaciones.dart';
+import 'package:controlformulaciones/services/api_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'dart:io';
+import 'package:intl/intl.dart';
 
-/// -------------------------
-/// Diálogo del Scanner
-/// -------------------------
+// Widget del Scanner
 class ScanDialog extends StatefulWidget {
   @override
   _ScanDialogState createState() => _ScanDialogState();
@@ -118,9 +112,7 @@ class _ScanDialogState extends State<ScanDialog> {
   }
 }
 
-/// -------------------------
-/// Diálogo de Trabajo Adicional
-/// -------------------------
+// Widget de Trabajo Adicional
 class TrabajoAdicionalDialog extends StatefulWidget {
   final double prevSecuencia;
   final ApiService apiService;
@@ -349,9 +341,7 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
   }
 }
 
-/// -------------------------
-/// Pantalla Principal de Filtración
-/// -------------------------
+// Pantalla Principal de Filtración
 class FiltracionFormulaciones extends StatefulWidget {
   final FormulationItem pesajeItem;
   final List<FormulationItem> bomboItems;
@@ -368,8 +358,11 @@ class FiltracionFormulaciones extends StatefulWidget {
 }
 
 class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
-  late List<FormulationItem> items;
   final ApiService _apiService = ApiService();
+  final DBHelper _dbHelper = DBHelper();
+  late List<FormulationItem> items;
+  Map<int, DateTime> _startTimes = {};
+  Map<int, DateTime> _endTimes = {};
 
   @override
   void initState() {
@@ -530,6 +523,89 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     );
   }
 
+  Future<pw.Document> _generarPDF() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Detalle de Proceso',
+                      style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                  pw.Divider(),
+                  pw.Text('OP: ${widget.pesajeItem.nrOp}',
+                      style: pw.TextStyle(fontSize: 16)),
+                  pw.Text('Máquina: ${widget.pesajeItem.maquina}',
+                      style: pw.TextStyle(fontSize: 16)),
+                  pw.Text('Producto: ${widget.pesajeItem.productoOp}',
+                      style: pw.TextStyle(fontSize: 16)),
+                  
+                  pw.Text('Fecha Proceso: ${widget.pesajeItem.fechaApertura}',
+                      style: pw.TextStyle(fontSize: 16)),
+                  pw.Text('Fecha Generación: ${DateTime.now().toIso8601String()}',
+                      style: pw.TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.TableHelper.fromTextArray(
+              context: context,
+              headers: [
+                'Secuencia',
+                'Instrucción',
+                'Producto',
+                'Temperatura',
+                'Tiempo',
+                'Ctd Explosión',
+                'Observación',
+
+                'Inicio',
+                'Fin'
+              ],
+              data: items.asMap().entries.map((entry) {
+                int idx = entry.key;
+                FormulationItem item = entry.value;
+                return [
+                  item.sec.toString(),
+                  item.operMaquina,
+                  item.productoPesaje ?? '',
+                  '${item.temperatura}°C',
+                  '${item.minutos} min',
+                  item.ctdExplosion?.toString() ?? '',
+                  item.observacion ?? '',
+                  _startTimes[idx]?.toIso8601String() ?? '',
+                  _endTimes[idx]?.toIso8601String() ?? '',
+                ];
+              }).toList(),
+              cellAlignment: pw.Alignment.center,
+              cellStyle: pw.TextStyle(fontSize: 10),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ];
+        },
+        footer: (pw.Context context) {
+          return pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(top: 10),
+            child: pw.Text(
+              'Página ${context.pageNumber} de ${context.pagesCount}',
+              style: pw.TextStyle(fontSize: 10),
+            ),
+          );
+        },
+      ),
+    );
+
+    return pdf;
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Consumer<TimerProvider>(
@@ -563,7 +639,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                         Text(
                             'Código producto: ${widget.pesajeItem.codProducto}',
                             style: TextStyle(fontSize: 16)),
-                        Text('Número de pesaje: ${widget.pesajeItem.numeroPesaje}',
+                        Text(
+                            'Número de pesaje: ${widget.pesajeItem.numeroPesaje}',
                             style: TextStyle(fontSize: 16)),
                         SizedBox(height: 16),
                         SingleChildScrollView(
@@ -606,14 +683,18 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                     onChanged: (bool? value) {
                                       setState(() {
                                         item.checked = value ?? false;
-                                        if (value == true && item.minutos > 0) {
-                                          timerProvider.startTimer(
-                                            idx,
-                                            item.minutos,
-                                            widget.pesajeItem.maquina,
-                                            item.sec.toString(),
-                                          );
+                                        if (value == true) {
+                                          _startTimes[idx] = DateTime.now();
+                                          if (item.minutos > 0) {
+                                            timerProvider.startTimer(
+                                              idx,
+                                              item.minutos,
+                                              widget.pesajeItem.maquina,
+                                              item.sec.toString(),
+                                            );
+                                          }
                                         } else {
+                                          _endTimes[idx] = DateTime.now();
                                           timerProvider.stopTimer(idx);
                                         }
                                         _updateRowStatuses(idx);
@@ -721,6 +802,8 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                             item.codigoEscaneado = null;
                           }
                           timerProvider.stopAllTimers();
+                          _startTimes.clear();
+                          _endTimes.clear();
                         });
                       },
                       style: ElevatedButton.styleFrom(
@@ -733,169 +816,73 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                       ),
                     ),
                     SizedBox(width: 10),
-                    // Botón Fin Proceso: Guarda en SQLite, genera PDF y limpia la base de datos.
                     ElevatedButton(
                       onPressed: () async {
-                        final dbHelper = DBHelper();
+                        try {
+                          // Obtener directorio para guardar el PDF
+                          final directory =
+                              await getApplicationDocumentsDirectory();
+                          final String pdfPath =
+                              '${directory.path}/reporte_${widget.pesajeItem.nrOp}_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-                        // Construir el registro del proceso
-                        Map<String, dynamic> proceso = {
-                          'nrOp': widget.pesajeItem.nrOp,
-                          'maquina': widget.pesajeItem.maquina,
-                          'producto': widget.pesajeItem.productoOp,
-                          'fecha_guardado': DateTime.now().toIso8601String(),
-                          'fecha_proceso': widget.pesajeItem.fechaApertura,
-                        };
-
-                        // Insertar el proceso y obtener su ID
-                        int procesoId = await dbHelper.insertProceso(proceso);
-                        print("Proceso insertado con ID: $procesoId");
-
-                        // Insertar cada secuencia asociada al proceso
-                        for (var item in items) {
-                          Map<String, dynamic> secuencia = {
-                            'proceso_id': procesoId,
-                            'secuencia': item.sec,
-                            'instruccion': item.operMaquina,
-                            'producto': item.productoPesaje,
-                            'temperatura': item.temperatura,
-                            'tiempo': item.minutos,
-                            'ctd_explosion': item.ctdExplosion,
-                            'observacion': item.observacion,
-                            'codigo_escaneado': item.codigoEscaneado,
+                          // Guardar el proceso en la base de datos
+                          Map<String, dynamic> proceso = {
+                            'nrOp': widget.pesajeItem.nrOp,
+                            'numeroPesaje': widget.pesajeItem.numeroPesaje,
+                            'maquina': widget.pesajeItem.maquina,
+                            'producto': widget.pesajeItem.productoOp,
+                            'codProducto': widget.pesajeItem.codProducto,
+                            'fecha_proceso': widget.pesajeItem.fechaApertura,
+                            'fecha_guardado': DateTime.now().toIso8601String(),
+                            'pdfPath': pdfPath,
+                            'situacion': widget.pesajeItem.situacion,
                           };
-                          await dbHelper.insertSecuencia(secuencia);
-                          print("Secuencia insertada: ${secuencia.toString()}");
-                        }
 
-                        // Recuperar las secuencias asociadas al proceso
-                        List<Map<String, dynamic>> secuencias =
-                            await dbHelper.getSecuencias(procesoId);
-                        print("Secuencias recuperadas: ${secuencias.length}");
+                          // Insertar proceso y obtener su ID
+                          int procesoId =
+                              await _dbHelper.insertProceso(proceso);
 
-                        // Generar el documento PDF
-                        final pdf = pw.Document();
-                        pdf.addPage(
-                          pw.MultiPage(
-                            build: (pw.Context context) {
-                              return [
-                                pw.Header(
-                                  level: 0,
-                                  child: pw.Column(
-                                    crossAxisAlignment:
-                                        pw.CrossAxisAlignment.start,
-                                    children: [
-                                      pw.Text('Detalle de Proceso',
-                                          style: pw.TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: pw.FontWeight.bold)),
-                                      pw.Divider(),
-                                      pw.Text('Proceso ID: $procesoId',
-                                          style: pw.TextStyle(fontSize: 16)),
-                                      pw.Text('OP: ${widget.pesajeItem.nrOp}',
-                                          style: pw.TextStyle(fontSize: 16)),
-                                      pw.Text(
-                                          'Máquina: ${widget.pesajeItem.maquina}',
-                                          style: pw.TextStyle(fontSize: 16)),
-                                      pw.Text(
-                                          'Producto: ${widget.pesajeItem.productoOp}',
-                                          style: pw.TextStyle(fontSize: 16)),
-                                      pw.Text(
-                                          'Fecha Proceso: ${widget.pesajeItem.fechaApertura}',
-                                          style: pw.TextStyle(fontSize: 16)),
-                                      pw.Text(
-                                          'Fecha Guardado: ${DateTime.now().toIso8601String()}',
-                                          style: pw.TextStyle(fontSize: 16)),
-                                    ],
-                                  ),
-                                ),
-                                pw.SizedBox(height: 20),
-                                pw.TableHelper.fromTextArray(
-                                  context: context,
-                                  border: pw.TableBorder.all(
-                                      color: PdfColors.black),
-                                  headerStyle: pw.TextStyle(
-                                      fontWeight: pw.FontWeight.bold),
-                                  headerDecoration: pw.BoxDecoration(
-                                      color: PdfColors.grey300),
-                                  cellStyle: pw.TextStyle(fontSize: 10),
-                                  cellAlignments: {
-                                    0: pw.Alignment.centerLeft,
-                                    1: pw.Alignment.centerLeft,
-                                    2: pw.Alignment.centerLeft,
-                                    3: pw.Alignment.center,
-                                    4: pw.Alignment.center,
-                                    5: pw.Alignment.center,
-                                    6: pw.Alignment.centerLeft,
-                                    7: pw.Alignment.centerLeft,
-                                  },
-                                  headers: [
-                                    'Secuencia',
-                                    'Instrucción',
-                                    'Producto',
-                                    'Temperatura',
-                                    'Tiempo',
-                                    'Ctd Explosión',
-                                    'Observación',
-                                    'Código Escaneado'
-                                  ],
-                                  data: items
-                                      .map<List<String>>((item) => [
-                                            item.sec.toString(),
-                                            item.operMaquina ?? '',
-                                            item.productoPesaje ?? '',
-                                            '${item.temperatura}°C',
-                                            '${item.minutos} min',
-                                            item.ctdExplosion?.toString() ?? '',
-                                            item.observacion ?? '',
-                                            item.codigoEscaneado ?? '',
-                                          ])
-                                      .toList(),
-                                ),
-                              ];
-                            },
-                            footer: (pw.Context context) {
-                              return pw.Container(
-                                alignment: pw.Alignment.centerRight,
-                                margin: const pw.EdgeInsets.only(top: 10),
-                                child: pw.Text(
-                                  'Página ${context.pageNumber} de ${context.pagesCount}',
-                                  style: pw.TextStyle(fontSize: 10),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-
-                        
-
-                        // Mostrar la vista previa y permitir la impresión/guardado del PDF
-                        await Printing.layoutPdf(
-                          onLayout: (PdfPageFormat format) async => pdf.save(),
-                        );
-
-                        // Limpiar los datos de las tablas
-                        await dbHelper.deleteAllData();
-                        print("Datos limpiados de la base de datos");
-
-                        // Reiniciar la UI (opcional)
-                        setState(() {
-                          for (var item in items) {
-                            item.checked = false;
-                            item.status = RowStatus.pending;
-                            item.codigoEscaneado = null;
+                          // Guardar las secuencias
+                          for (var i = 0; i < items.length; i++) {
+                            var item = items[i];
+                            Map<String, dynamic> secuencia = {
+                              'proceso_id': procesoId,
+                              'secuencia': item.sec,
+                              'instruccion': item.operMaquina,
+                              'producto': item.productoPesaje,
+                              'temperatura': item.temperatura,
+                              'tiempo': item.minutos,
+                              'ctd_explosion': item.ctdExplosion,
+                              'observacion': item.observacion,
+                              'codigo_escaneado': item.codigoEscaneado,
+                              'hora_inicio': _startTimes[i]?.toIso8601String(),
+                              'hora_fin': _endTimes[i]?.toIso8601String(),
+                            };
+                            await _dbHelper.insertSecuencia(secuencia);
                           }
-                          timerProvider.stopAllTimers();
-                        });
 
-                        // Notificar al usuario
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Proceso guardado, PDF generado y datos limpiados.',
+                          // Generar y guardar PDF
+                          final pdf = await _generarPDF();
+                          final File file = File(pdfPath);
+                          await file.writeAsBytes(await pdf.save());
+
+                          // Mostrar mensaje de éxito y volver
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text('Proceso guardado correctamente')),
+                          );
+                          Navigator.pop(context, items);
+                        } catch (e) {
+                          print('Error al guardar proceso: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Error al guardar el proceso: ${e.toString()}'),
+                              backgroundColor: Colors.red,
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         padding:
@@ -908,46 +895,49 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                     ),
                     SizedBox(width: 10),
                     ElevatedButton(
-                      onPressed: () async {
-                        if (items.isEmpty) return;
+                        onPressed: () async {
+                          if (items.isEmpty) return;
 
-                        final selectedItem = await showDialog<FormulationItem>(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              title: Text('Seleccionar Secuencia'),
-                              content: Container(
-                                width: double.maxFinite,
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: items.length,
-                                  itemBuilder: (context, index) {
-                                    final item = items[index];
-                                    return ListTile(
-                                      title: Text('Secuencia ${item.sec}'),
-                                      subtitle: Text(item.operMaquina),
-                                      onTap: () => Navigator.pop(context, item),
-                                    );
-                                  },
+                          final selectedItem =
+                              await showDialog<FormulationItem>(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text('Seleccionar Secuencia'),
+                                content: Container(
+                                  width: double.maxFinite,
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: items.length,
+                                    itemBuilder: (context, index) {
+                                      final item = items[index];
+                                      return ListTile(
+                                        title: Text('Secuencia ${item.sec}'),
+                                        subtitle: Text(item.operMaquina),
+                                        onTap: () =>
+                                            Navigator.pop(context, item),
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        );
+                              );
+                            },
+                          );
 
-                        if (selectedItem != null) {
-                          await _showTrabajoAdicionalDialog(selectedItem);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                      child: Text(
-                        'Trabajo\nAdicional',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                          if (selectedItem != null) {
+                            await _showTrabajoAdicionalDialog(selectedItem);
+                          }
+                          ;
+                          style:
+                          ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                          );
+                        },
+                        child: Text(
+                          'Trabajo\nAdicional',
+                          textAlign: TextAlign.center,
+                        )),
                   ],
                 ),
               ),
@@ -956,5 +946,12 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
         );
       },
     );
+  }
+}
+
+// Puedes agregar esta extensión al final del archivo para formatear fechas
+extension DateTimeExtension on DateTime {
+  String toFormattedString() {
+    return DateFormat('dd/MM/yyyy HH:mm').format(this);
   }
 }

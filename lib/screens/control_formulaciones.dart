@@ -1,3 +1,4 @@
+import 'package:controlformulaciones/screens/reportes.dart';
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:controlformulaciones/screens/filtracion_formulaciones.dart';
@@ -280,7 +281,11 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
           leading: Icon(Icons.document_scanner),
           title: Text('Generacion de\nreportes'),
           onTap: () {
-            Navigator.pop(context);
+            Navigator.pop(context); // Close drawer
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => ReportsScreen()),
+          );
           },
         ),
       ]);
