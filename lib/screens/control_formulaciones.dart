@@ -151,7 +151,6 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     if (_filteredItems.isEmpty)
       return Center(child: Text('No hay pesajes activos'));
 
-    // Primero agrupamos por OP
     var groupedByOP = groupBy(_filteredItems, (FormulationItem item) => item.nrOp);
     var sortedOPs = groupedByOP.keys.toList()..sort();
 
@@ -161,7 +160,6 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
         int op = sortedOPs[index];
         List<FormulationItem> opItems = groupedByOP[op]!;
 
-        // Luego agrupamos por máquina dentro de cada OP
         var groupedByMaquina = groupBy(opItems, (FormulationItem item) => item.maquina);
         var sortedMaquinas = groupedByMaquina.keys.toList()..sort((a, b) {
           final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
@@ -279,7 +277,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
             ),
             SizedBox(height: 8),
             Text(
-              'Rol: $userRole',
+              'Rol: ${userRole == 'S' ? 'Supervisor' : 'Operador'}',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,

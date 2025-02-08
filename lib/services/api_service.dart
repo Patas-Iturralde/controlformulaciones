@@ -7,7 +7,7 @@ class ApiService {
 
   Future<Map<String, String>> _getHeaders({bool includeToken = true}) async {
     Map<String, String> headers = {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json; charset=UTF-8",
       "accept": "application/json"
     };
 
@@ -29,11 +29,10 @@ class ApiService {
 
     try {
       final response = await http.post(url, headers: headers, body: body);
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
         if (data["success"] == true) {
-          // Guardar el token si existe en la respuesta
           if (data["token"] != null) {
             final tokenService = await TokenService.getInstance();
             await tokenService.saveToken(data["token"]);
@@ -60,10 +59,16 @@ class ApiService {
         };
       }
     } catch (e) {
+      String errorMessage = "No hay conexión a internet";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
       return {
         "success": false,
         "user": null,
-        "message": "Error de conexión: $e",
+        "message": errorMessage,
       };
     }
   }
@@ -76,7 +81,6 @@ class ApiService {
       final response = await http.get(url, headers: headers);
       
       if (response.statusCode == 401) {
-        // Token expirado o inválido
         final tokenService = await TokenService.getInstance();
         await tokenService.logout();
         return {
@@ -87,7 +91,7 @@ class ApiService {
         };
       }
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
         return {
@@ -103,10 +107,16 @@ class ApiService {
         };
       }
     } catch (e) {
+      String errorMessage = "No hay conexión a internet";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
       return {
         "success": false,
         "data": null,
-        "message": "Error de conexión: $e",
+        "message": errorMessage,
       };
     }
   }
@@ -119,7 +129,6 @@ class ApiService {
       final response = await http.get(url, headers: headers);
       
       if (response.statusCode == 401) {
-        // Token expirado o inválido
         final tokenService = await TokenService.getInstance();
         await tokenService.logout();
         return {
@@ -130,13 +139,13 @@ class ApiService {
         };
       }
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
         if (data["success"]) {
           return {
             "success": true,
-            "data": data["data"], // Lista de productos químicos
+            "data": data["data"],
             "total": data["total"],
             "message": null,
           };
@@ -155,17 +164,21 @@ class ApiService {
         };
       }
     } catch (e) {
+      String errorMessage = "No hay conexión a internet";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
       return {
         "success": false,
         "data": null,
-        "message": "Error de conexión: $e",
+        "message": errorMessage,
       };
     }
   }
 
-  // Agregar este método a tu clase ApiService existente
-
-Future<Map<String, dynamic>> getOperaciones() async {
+  Future<Map<String, dynamic>> getOperaciones() async {
     final url = Uri.parse("$baseUrl/api/operaciones");
     final headers = await _getHeaders();
 
@@ -173,7 +186,6 @@ Future<Map<String, dynamic>> getOperaciones() async {
       final response = await http.get(url, headers: headers);
       
       if (response.statusCode == 401) {
-        // Token expirado o inválido
         final tokenService = await TokenService.getInstance();
         await tokenService.logout();
         return {
@@ -184,13 +196,13 @@ Future<Map<String, dynamic>> getOperaciones() async {
         };
       }
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
         if (data["success"]) {
           return {
             "success": true,
-            "data": data["data"], // Lista de operaciones
+            "data": data["data"],
             "total": data["total"],
             "message": null,
           };
@@ -209,11 +221,17 @@ Future<Map<String, dynamic>> getOperaciones() async {
         };
       }
     } catch (e) {
+      String errorMessage = "No hay conexión a internet";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
       return {
         "success": false,
         "data": null,
-        "message": "Error de conexión: $e",
+        "message": errorMessage,
       };
     }
-}
+  }
 }
