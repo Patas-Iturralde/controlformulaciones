@@ -561,7 +561,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                 'Instrucción',
                 'Producto',
                 'Temperatura',
-                'Tiempo',
+
                 'Ctd Explosión',
                 'Observación',
 
@@ -576,7 +576,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                   item.operMaquina,
                   item.productoPesaje ?? '',
                   '${item.temperatura}°C',
-                  '${item.minutos} min',
+   
                   item.ctdExplosion?.toString() ?? '',
                   item.observacion ?? '',
                   _startTimes[idx]?.toIso8601String() ?? '',

@@ -62,11 +62,12 @@ class FormulationItem {
       minutos: json['MINUTOS'] ?? 0,
       situacion: json['SITUACION'],
       fechaApertura: json['FECHA_APERTURA'] ?? '',
-      productoPesaje: json['PRODUCTO_PESAJE'], 
+      productoPesaje: json['PRODUCTO_PESAJE'],
       observacion: json['OBSERVACION'],
       ctdExplosion: json['CTD_EXPLOSION']?.toDouble(),
     );
   }
+
   Map<String, dynamic> toJson() {
     return {
       'ID_PESAGEM_ITEM': idPesagemItem,
@@ -123,12 +124,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     setState(() {
       _filteredItems = query.isEmpty
           ? items
-          : items
-              .where((item) =>
-                  item.productoOp.toLowerCase().contains(query) ||
-                  item.maquina.toLowerCase().contains(query) ||
-                  item.nrOp.toString().contains(query))
-              .toList();
+          : items.where((item) => item.nrOp.toString().contains(query)).toList();
     });
   }
 
@@ -151,56 +147,88 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
   }
 
   Widget _buildItemList() {
-  if (isLoading) return Center(child: CircularProgressIndicator());
-  if (_filteredItems.isEmpty)
-    return Center(child: Text('No hay pesajes activos'));
+    if (isLoading) return Center(child: CircularProgressIndicator());
+    if (_filteredItems.isEmpty)
+      return Center(child: Text('No hay pesajes activos'));
 
-  // Agrupamos por máquina y ordenamos los bombos
-  var groupedItems = groupBy(_filteredItems, (FormulationItem item) => item.maquina);
-  var sortedBombos = groupedItems.keys.toList()..sort((a, b) {
-    final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-    final numB = int.tryParse(b.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-    return numA.compareTo(numB);
-  });
+    // Primero agrupamos por OP
+    var groupedByOP = groupBy(_filteredItems, (FormulationItem item) => item.nrOp);
+    var sortedOPs = groupedByOP.keys.toList()..sort();
 
-  return ListView.builder(
-    itemCount: sortedBombos.length,
-    itemBuilder: (context, index) {
-      String bombo = sortedBombos[index];
-      List<FormulationItem> bomboItems = groupedItems[bombo]!;
+    return ListView.builder(
+      itemCount: sortedOPs.length,
+      itemBuilder: (context, index) {
+        int op = sortedOPs[index];
+        List<FormulationItem> opItems = groupedByOP[op]!;
 
-      var groupedByPesaje = groupBy(
-        bomboItems, 
-        (FormulationItem item) => item.nrOp
-      ).map((key, value) => MapEntry(key, value.first));
+        // Luego agrupamos por máquina dentro de cada OP
+        var groupedByMaquina = groupBy(opItems, (FormulationItem item) => item.maquina);
+        var sortedMaquinas = groupedByMaquina.keys.toList()..sort((a, b) {
+          final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+          final numB = int.tryParse(b.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+          return numA.compareTo(numB);
+        });
 
-      return ExpansionTile(
-        title: Text(bombo, style: TextStyle(fontWeight: FontWeight.bold)),
-        children: groupedByPesaje.entries
-            .map((pesajeGroup) => Card(
-                  child: ListTile(
+        return Card(
+          margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          child: ExpansionTile(
+            title: Row(
+              children: [
+                Text(
+                  'OP: $op',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    opItems.first.productoOp,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            children: sortedMaquinas.map((maquina) {
+              var maquinaItems = groupedByMaquina[maquina]!;
+              var groupedByPesaje = groupBy(
+                maquinaItems,
+                (FormulationItem item) => item.numeroPesaje,
+              );
+
+              return ExpansionTile(
+                title: Text(
+                  maquina,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                children: groupedByPesaje.entries.map((pesajeGroup) {
+                  var pesajeItems = groupedByPesaje[pesajeGroup.key]!;
+                  return ListTile(
                     title: Text('Pesaje: ${pesajeGroup.key}'),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                            'Secuencia actual: ${bomboItems.where((item) => item.nrOp == pesajeGroup.key && item.status == RowStatus.current).firstOrNull?.sec ?? 'No iniciado'}'),
+                          'Secuencia actual: ${pesajeItems.where((item) => item.status == RowStatus.current).firstOrNull?.sec ?? 'No iniciado'}',
+                        ),
                         Text(
-                            'Fecha: ${pesajeGroup.value.fechaApertura?.split('T')[0]}'),
+                          'Fecha: ${pesajeItems.first.fechaApertura?.split('T')[0]}',
+                        ),
                       ],
                     ),
                     trailing: IconButton(
                       onPressed: () async {
-                        final updatedItems =
-                            await Navigator.push<List<FormulationItem>>(
+                        final updatedItems = await Navigator.push<List<FormulationItem>>(
                           context,
                           MaterialPageRoute(
                             builder: (context) => FiltracionFormulaciones(
-                              pesajeItem: pesajeGroup.value,
-                              bomboItems: bomboItems
-                                  .where(
-                                      (item) => item.nrOp == pesajeGroup.key)
-                                  .toList(),
+                              pesajeItem: pesajeItems.first,
+                              bomboItems: pesajeItems,
                             ),
                           ),
                         );
@@ -208,9 +236,9 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
                         if (updatedItems != null) {
                           setState(() {
                             for (var updatedItem in updatedItems) {
-                              final index = items.indexWhere((item) =>
-                                  item.idPesagemItem ==
-                                  updatedItem.idPesagemItem);
+                              final index = items.indexWhere(
+                                (item) => item.idPesagemItem == updatedItem.idPesagemItem
+                              );
                               if (index != -1) {
                                 items[index] = updatedItem;
                               }
@@ -221,13 +249,15 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
                       },
                       icon: Icon(Icons.arrow_forward_ios),
                     ),
-                  ),
-                ))
-            .toList(),
-      );
-    },
-  );
-}
+                  );
+                }).toList(),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
 
   List<Widget> _buildDrawerItems() {
     List<Widget> items = [
@@ -279,13 +309,13 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
         ),
         ListTile(
           leading: Icon(Icons.document_scanner),
-          title: Text('Generacion de\nreportes'),
+          title: Text('Generación de\nreportes'),
           onTap: () {
-            Navigator.pop(context); // Close drawer
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => ReportsScreen()),
-          );
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ReportsScreen()),
+            );
           },
         ),
       ]);
@@ -348,7 +378,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Buscar por OP o pesaje',
+                hintText: 'Buscar por número de OP',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25.0),
@@ -363,6 +393,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
                       )
                     : null,
               ),
+              keyboardType: TextInputType.number,
             ),
           ),
           Expanded(
