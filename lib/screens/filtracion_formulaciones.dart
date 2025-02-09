@@ -221,7 +221,7 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                       controller: controller,
                       focusNode: focusNode,
                       decoration: InputDecoration(
-                        labelText: 'Buscar Operación',
+                        labelText: 'Buscar Operación *',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) =>
@@ -263,8 +263,6 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                         labelText: 'Buscar Producto',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) =>
-                          _selectedProducto == null ? 'Seleccione un producto' : null,
                     );
                   },
                 ),
@@ -276,7 +274,6 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
               ),
               SizedBox(height: 16),
               TextFormField(
@@ -286,7 +283,6 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
               ),
               SizedBox(height: 16),
               TextFormField(
@@ -321,16 +317,20 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
               Navigator.pop(context, {
                 'secuencia': widget.prevSecuencia + 0.1,
                 'instruccion': _selectedOperacion!['nm_operacao_maquina'],
-                'producto': _selectedProducto!['nombre'],
-                'codigoProducto': _selectedProducto!['codigo'],
-                'temperatura': double.parse(_temperaturaController.text),
-                'tiempo': int.parse(_tiempoController.text),
-                'ctdExplosion': _ctdExplosionController.text.isEmpty
-                    ? null
-                    : double.parse(_ctdExplosionController.text),
-                'observacion': _observacionController.text.isEmpty
-                    ? null
-                    : _observacionController.text,
+                'producto': _selectedProducto?['nombre'],
+                'codigoProducto': _selectedProducto?['codigo'],
+                'temperatura': _temperaturaController.text.isNotEmpty 
+                    ? double.parse(_temperaturaController.text)
+                    : 0.0,
+                'tiempo': _tiempoController.text.isNotEmpty 
+                    ? int.parse(_tiempoController.text)
+                    : 0,
+                'ctdExplosion': _ctdExplosionController.text.isNotEmpty
+                    ? double.parse(_ctdExplosionController.text)
+                    : null,
+                'observacion': _observacionController.text.isNotEmpty
+                    ? _observacionController.text
+                    : null,
               });
             }
           },
@@ -421,7 +421,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
           idPesagemItem: 0,
           nrOp: prevItem.nrOp,
           numeroPesaje: prevItem.numeroPesaje,
-          codProducto: result['codigoProducto'],
+          codProducto: result['codigoProducto'] ?? '',
           productoOp: prevItem.productoOp,
           maquina: prevItem.maquina,
           sec: double.parse('${prevItem.sec}.1').round(),
@@ -430,7 +430,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
           minutos: result['tiempo'],
           situacion: prevItem.situacion,
           fechaApertura: prevItem.fechaApertura,
-          productoPesaje: result['producto'],
+          productoPesaje: result['producto'] ?? '',
           ctdExplosion: result['ctdExplosion'],
           observacion: result['observacion'],
         );
