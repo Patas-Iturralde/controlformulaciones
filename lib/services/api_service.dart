@@ -235,8 +235,6 @@ class ApiService {
     }
   }
 
-  // Agregar este nuevo método a la clase ApiService
-
   Future<Map<String, dynamic>> sincronizarPesaje({
     required Map<String, dynamic> proceso,
     required List<Map<String, dynamic>> secuencias,
@@ -303,6 +301,118 @@ class ApiService {
 
       return {
         "success": false,
+        "message": errorMessage,
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getProcesosRemoto() async {
+    final url = Uri.parse("$baseUrl/api/procesos");
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      
+      if (response.statusCode == 401) {
+        final tokenService = await TokenService.getInstance();
+        await tokenService.logout();
+        return {
+          "success": false,
+          "data": null,
+          "message": "Sesión expirada",
+          "sessionExpired": true
+        };
+      }
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        if (data["success"]) {
+          return {
+            "success": true,
+            "data": data["data"],
+            "message": null,
+          };
+        } else {
+          return {
+            "success": false,
+            "data": [],
+            "message": data["message"] ?? "No hay procesos disponibles",
+          };
+        }
+      } else {
+        return {
+          "success": false,
+          "data": null,
+          "message": "Error al obtener procesos remotos",
+        };
+      }
+    } catch (e) {
+      String errorMessage = "No hay conexión a internet";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
+      return {
+        "success": false,
+        "data": null,
+        "message": errorMessage,
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getDetalleProcesoRemoto(int procesoId) async {
+    final url = Uri.parse("$baseUrl/api/procesos/$procesoId");
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      
+      if (response.statusCode == 401) {
+        final tokenService = await TokenService.getInstance();
+        await tokenService.logout();
+        return {
+          "success": false,
+          "data": null,
+          "message": "Sesión expirada",
+          "sessionExpired": true
+        };
+      }
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        if (data["success"]) {
+          return {
+            "success": true,
+            "data": data,
+            "message": null,
+          };
+        } else {
+          return {
+            "success": false,
+            "data": null,
+            "message": data["message"] ?? "No se encontraron detalles del proceso",
+          };
+        }
+      } else {
+        return {
+          "success": false,
+          "data": null,
+          "message": "Error al obtener detalles del proceso",
+        };
+      }
+    } catch (e) {
+      String errorMessage = "No hay conexión a internet";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
+      return {
+        "success": false,
+        "data": null,
         "message": errorMessage,
       };
     }

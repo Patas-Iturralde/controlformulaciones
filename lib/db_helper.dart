@@ -322,4 +322,21 @@ class DBHelper {
       _db = null;
     }
   }
+  // En db_helper.dart, agrega este método:
+
+Future<List<Map<String, dynamic>>> getProcesos() async {
+  final db = await database;
+  try {
+    // Obtener todos los procesos ordenados por fecha de guardado descendente
+    final List<Map<String, dynamic>> procesos = await db.query(
+      tableProcesos,
+      orderBy: 'fecha_guardado DESC'
+    );
+    
+    return procesos;
+  } catch (e) {
+    print('Error obteniendo procesos: $e');
+    return [];
+  }
+}
 }

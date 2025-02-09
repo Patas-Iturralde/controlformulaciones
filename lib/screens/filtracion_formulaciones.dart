@@ -380,30 +380,30 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   }
 
   // Función auxiliar para determinar si el checkbox debe estar deshabilitado
-bool _isCheckboxDisabled(int index) {
-  final item = items[index];
-  
-  // Si ya está completada y tiene hora de fin, no se puede desmarcar
-  if (item.checked && _endTimes.containsKey(index)) {
-    return true;
-  }
-  
-  // Verificar si hay secuencias posteriores que se hayan marcado
-  bool haySecuenciaPosteriorMarcada = false;
-  for (int i = index + 1; i < items.length; i++) {
-    if (items[i].checked) {
-      haySecuenciaPosteriorMarcada = true;
-      break;
+  bool _isCheckboxDisabled(int index) {
+    final item = items[index];
+
+    // Si ya está completada y tiene hora de fin, no se puede desmarcar
+    if (item.checked && _endTimes.containsKey(index)) {
+      return true;
     }
+
+    // Verificar si hay secuencias posteriores que se hayan marcado
+    bool haySecuenciaPosteriorMarcada = false;
+    for (int i = index + 1; i < items.length; i++) {
+      if (items[i].checked) {
+        haySecuenciaPosteriorMarcada = true;
+        break;
+      }
+    }
+
+    // Si hay una secuencia posterior marcada, esta secuencia queda bloqueada
+    if (haySecuenciaPosteriorMarcada) {
+      return true;
+    }
+
+    return false;
   }
-  
-  // Si hay una secuencia posterior marcada, esta secuencia queda bloqueada
-  if (haySecuenciaPosteriorMarcada) {
-    return true;
-  }
-  
-  return false;
-}
 
   String _formatTime(int seconds) {
     int minutes = seconds ~/ 60;
@@ -564,9 +564,11 @@ bool _isCheckboxDisabled(int index) {
 
   Future<pw.Document> _generarPDF() async {
     // Filtrar solo las secuencias iniciadas
-    final iniciadas = items.asMap().entries.where((entry) => 
-      _startTimes.containsKey(entry.key)
-    ).toList();
+    final iniciadas = items
+        .asMap()
+        .entries
+        .where((entry) => _startTimes.containsKey(entry.key))
+        .toList();
 
     final pdf = pw.Document();
 
@@ -603,13 +605,13 @@ bool _isCheckboxDisabled(int index) {
                 pw.Table(
                   border: pw.TableBorder.all(width: 0.5),
                   columnWidths: {
-                    0: const pw.FlexColumnWidth(1),    // Secuencia
-                    1: const pw.FlexColumnWidth(2),    // Instrucción
-                    2: const pw.FlexColumnWidth(2),    // Producto
-                    3: const pw.FlexColumnWidth(1.5),  // Ctd Explosión
-                    4: const pw.FlexColumnWidth(2),    // Observación
-                    5: const pw.FlexColumnWidth(1),    // Inicio
-                    6: const pw.FlexColumnWidth(1),    // Fin
+                    0: const pw.FlexColumnWidth(1), // Secuencia
+                    1: const pw.FlexColumnWidth(2), // Instrucción
+                    2: const pw.FlexColumnWidth(2), // Producto
+                    3: const pw.FlexColumnWidth(1.5), // Ctd Explosión
+                    4: const pw.FlexColumnWidth(2), // Observación
+                    5: const pw.FlexColumnWidth(1), // Inicio
+                    6: const pw.FlexColumnWidth(1), // Fin
                   },
                   children: [
                     pw.TableRow(
@@ -624,14 +626,16 @@ bool _isCheckboxDisabled(int index) {
                         'Observación',
                         'Hora Inicio',
                         'Hora Fin',
-                      ].map((text) => pw.Container(
-                        padding: const pw.EdgeInsets.all(5),
-                        alignment: pw.Alignment.center,
-                        child: pw.Text(
-                          text,
-                          style: pw.TextStyle(fontSize: 10),
-                        ),
-                      )).toList(),
+                      ]
+                          .map((text) => pw.Container(
+                                padding: const pw.EdgeInsets.all(5),
+                                alignment: pw.Alignment.center,
+                                child: pw.Text(
+                                  text,
+                                  style: pw.TextStyle(fontSize: 10),
+                                ),
+                              ))
+                          .toList(),
                     ),
                     ...iniciadas.map((entry) {
                       int idx = entry.key;
@@ -640,6 +644,7 @@ bool _isCheckboxDisabled(int index) {
                         if (dateTime == null) return '';
                         return DateFormat('HH:mm').format(dateTime);
                       }
+
                       return pw.TableRow(
                         children: [
                           _buildPdfCell(item.sec.toString()),
@@ -662,7 +667,8 @@ bool _isCheckboxDisabled(int index) {
                     decoration: pw.BoxDecoration(
                       border: pw.Border.all(width: 0.5),
                     ),
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
                     // child: pw.Text(
                     //   'Tiempo Total Fórmula: ${_calcularTiempoTotal()}',
                     //   style: const pw.TextStyle(fontSize: 10),
@@ -771,87 +777,111 @@ bool _isCheckboxDisabled(int index) {
                                 ),
                                 cells: [
                                   DataCell(Checkbox(
-  value: item.checked,
-  onChanged: _isCheckboxDisabled(idx) ? null : (bool? value) async {
-    // Si estamos intentando marcar una nueva secuencia
-    if (value == true) {
-      // Buscar si hay una secuencia anterior con temporizador activo
-      int currentIndex = idx;
-      int previousActiveIndex = -1;
-      
-      for (int i = 0; i < items.length; i++) {
-        if (i != currentIndex && 
-            items[i].checked && 
-            timerProvider.remainingSeconds.containsKey(i) &&
-            !_endTimes.containsKey(i)) {
-          previousActiveIndex = i;
-          break;
-        }
-      }
+                                    value: item.checked,
+                                    onChanged: _isCheckboxDisabled(idx)
+                                        ? null
+                                        : (bool? value) async {
+                                            // Si estamos intentando marcar una nueva secuencia
+                                            if (value == true) {
+                                              // Buscar si hay una secuencia anterior con temporizador activo
+                                              int currentIndex = idx;
+                                              int previousActiveIndex = -1;
 
-      // Si encontramos una secuencia activa anterior
-      if (previousActiveIndex != -1) {
-        // Preguntar si desea finalizar la secuencia anterior
-        bool? finalizarAnterior = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Secuencia Activa'),
-              content: Text('¿Desea finalizar la secuencia ${items[previousActiveIndex].sec} antes de iniciar la nueva?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text('Cancelar'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text('Finalizar y Continuar'),
-                ),
-              ],
-            );
-          },
-        );
+                                              for (int i = 0;
+                                                  i < items.length;
+                                                  i++) {
+                                                if (i != currentIndex &&
+                                                    items[i].checked &&
+                                                    timerProvider
+                                                        .remainingSeconds
+                                                        .containsKey(i) &&
+                                                    !_endTimes.containsKey(i)) {
+                                                  previousActiveIndex = i;
+                                                  break;
+                                                }
+                                              }
 
-        // Si el usuario canceló, no hacemos nada
-        if (finalizarAnterior == null || !finalizarAnterior) {
-          return;
-        }
+                                              // Si encontramos una secuencia activa anterior
+                                              if (previousActiveIndex != -1) {
+                                                // Preguntar si desea finalizar la secuencia anterior
+                                                bool? finalizarAnterior =
+                                                    await showDialog<bool>(
+                                                  context: context,
+                                                  barrierDismissible: false,
+                                                  builder:
+                                                      (BuildContext context) {
+                                                    return AlertDialog(
+                                                      title: Text(
+                                                          'Secuencia Activa'),
+                                                      content: Text(
+                                                          '¿Desea finalizar la secuencia ${items[previousActiveIndex].sec} antes de iniciar la nueva?'),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                  context,
+                                                                  false),
+                                                          child:
+                                                              Text('Cancelar'),
+                                                        ),
+                                                        ElevatedButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                  context,
+                                                                  true),
+                                                          child: Text(
+                                                              'Finalizar y Continuar'),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
 
-        // Finalizar la secuencia anterior
-        setState(() {
-          _endTimes[previousActiveIndex] = DateTime.now();
-          timerProvider.stopTimer(previousActiveIndex);
-        });
-      }
+                                                // Si el usuario canceló, no hacemos nada
+                                                if (finalizarAnterior == null ||
+                                                    !finalizarAnterior) {
+                                                  return;
+                                                }
 
-      // Iniciar la nueva secuencia
-      setState(() {
-        item.checked = true;
-        _startTimes[idx] = DateTime.now();
-        if (item.minutos > 0) {
-          timerProvider.startTimer(
-            idx,
-            item.minutos,
-            widget.pesajeItem.maquina,
-            item.sec.toString(),
-          );
-        }
-        _updateRowStatuses(idx);
-      });
-    } 
-    // Si estamos intentando desmarcar una secuencia
-    else if (!_endTimes.containsKey(idx)) {
-      // Solo permitir desmarcar si no está finalizada
-      setState(() {
-        item.checked = false;
-        _endTimes[idx] = DateTime.now();
-        timerProvider.stopTimer(idx);
-        _updateRowStatuses(idx);
-      });
-    }
-  },
-)),
+                                                // Finalizar la secuencia anterior
+                                                setState(() {
+                                                  _endTimes[
+                                                          previousActiveIndex] =
+                                                      DateTime.now();
+                                                  timerProvider.stopTimer(
+                                                      previousActiveIndex);
+                                                });
+                                              }
+
+                                              // Iniciar la nueva secuencia
+                                              setState(() {
+                                                item.checked = true;
+                                                _startTimes[idx] =
+                                                    DateTime.now();
+                                                if (item.minutos > 0) {
+                                                  timerProvider.startTimer(
+                                                    idx,
+                                                    item.minutos,
+                                                    widget.pesajeItem.maquina,
+                                                    item.sec.toString(),
+                                                  );
+                                                }
+                                                _updateRowStatuses(idx);
+                                              });
+                                            }
+                                            // Si estamos intentando desmarcar una secuencia
+                                            else if (!_endTimes
+                                                .containsKey(idx)) {
+                                              // Solo permitir desmarcar si no está finalizada
+                                              setState(() {
+                                                item.checked = false;
+                                                _endTimes[idx] = DateTime.now();
+                                                timerProvider.stopTimer(idx);
+                                                _updateRowStatuses(idx);
+                                              });
+                                            }
+                                          },
+                                  )),
                                   DataCell(Text('${item.sec}')),
                                   DataCell(
                                     GestureDetector(
@@ -976,7 +1006,7 @@ bool _isCheckboxDisabled(int index) {
                           final String pdfPath =
                               '${directory.path}/reporte_${widget.pesajeItem.nrOp}_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-                          // Guardar el proceso en la base de datos
+                          // Preparar datos del proceso
                           Map<String, dynamic> proceso = {
                             'nrOp': widget.pesajeItem.nrOp,
                             'numeroPesaje': widget.pesajeItem.numeroPesaje,
@@ -989,13 +1019,18 @@ bool _isCheckboxDisabled(int index) {
                             'situacion': widget.pesajeItem.situacion,
                           };
 
-                          // Insertar proceso y obtener su ID
+                          // Guardar en SQLite y obtener ID
                           int procesoId =
                               await _dbHelper.insertProceso(proceso);
 
-                          // Guardar las secuencias
+                          // Lista para secuencias iniciadas que se sincronizarán
+                          List<Map<String, dynamic>> secuencias = [];
+
+                          // Procesar cada secuencia
                           for (var i = 0; i < items.length; i++) {
                             var item = items[i];
+
+                            // Preparar datos de la secuencia
                             Map<String, dynamic> secuencia = {
                               'proceso_id': procesoId,
                               'secuencia': item.sec,
@@ -1009,7 +1044,52 @@ bool _isCheckboxDisabled(int index) {
                               'hora_inicio': _startTimes[i]?.toIso8601String(),
                               'hora_fin': _endTimes[i]?.toIso8601String(),
                             };
+
+                            // Guardar en SQLite
                             await _dbHelper.insertSecuencia(secuencia);
+
+                            // Si la secuencia fue iniciada, agregarla para sincronización
+                            if (_startTimes.containsKey(i)) {
+                              secuencias.add({
+                                ...secuencia,
+                                'hora_inicio':
+                                    _startTimes[i]?.toIso8601String(),
+                                'hora_fin': _endTimes[i]?.toIso8601String(),
+                              });
+                            }
+                          }
+
+                          // Intentar sincronizar con el servidor
+                          final syncResult =
+                              await _apiService.sincronizarPesaje(
+                            proceso: proceso,
+                            secuencias: secuencias,
+                          );
+
+                          // Manejar resultado de sincronización
+                          if (!syncResult['success']) {
+                            if (syncResult['sessionExpired'] == true) {
+                              // Si la sesión expiró, mostrar mensaje y redirigir al login
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Su sesión ha expirado. Por favor, inicie sesión nuevamente.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              // Aquí puedes agregar la navegación al login si es necesario
+                              return;
+                            } else {
+                              // Si falló por otra razón, mostrar advertencia pero continuar
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Advertencia: ${syncResult['message']}. Los datos se sincronizarán más tarde.'),
+                                  backgroundColor: Colors.orange,
+                                  duration: Duration(seconds: 4),
+                                ),
+                              );
+                            }
                           }
 
                           // Generar y guardar PDF
@@ -1017,12 +1097,20 @@ bool _isCheckboxDisabled(int index) {
                           final File file = File(pdfPath);
                           await file.writeAsBytes(await pdf.save());
 
-                          // Mostrar mensaje de éxito y volver
+                          // Mostrar mensaje de éxito
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                                content:
-                                    Text('Proceso guardado correctamente')),
+                              content: Text(syncResult['success']
+                                  ? 'Proceso guardado y sincronizado correctamente'
+                                  : 'Proceso guardado localmente'),
+                              backgroundColor: syncResult['success']
+                                  ? Colors.green
+                                  : Colors.blue,
+                              duration: Duration(seconds: 3),
+                            ),
                           );
+
+                          // Volver a la pantalla anterior
                           Navigator.pop(context, items);
                         } catch (e) {
                           print('Error al guardar proceso: $e');
@@ -1031,6 +1119,7 @@ bool _isCheckboxDisabled(int index) {
                               content: Text(
                                   'Error al guardar el proceso: ${e.toString()}'),
                               backgroundColor: Colors.red,
+                              duration: Duration(seconds: 4),
                             ),
                           );
                         }
