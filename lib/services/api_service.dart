@@ -417,4 +417,61 @@ class ApiService {
       };
     }
   }
+
+  Future<Map<String, dynamic>> getPesajesCerrados() async {
+    final url = Uri.parse("$baseUrl/api/pesajes_cerrados");
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      
+      if (response.statusCode == 401) {
+        final tokenService = await TokenService.getInstance();
+        await tokenService.logout();
+        return {
+          "success": false,
+          "data": null,
+          "message": "Sesión expirada",
+          "sessionExpired": true
+        };
+      }
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        if (data["success"]) {
+          return {
+            "success": true,
+            "data": data["data"],
+            "total": data["total"],
+            "message": null,
+          };
+        } else {
+          return {
+            "success": false,
+            "data": [],
+            "message": data["message"] ?? "No hay pesajes cerrados disponibles",
+          };
+        }
+      } else {
+        return {
+          "success": false,
+          "data": null,
+          "message": "Error al obtener pesajes cerrados",
+        };
+      }
+    } catch (e) {
+      String errorMessage = "No hay conexión a internet";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
+      return {
+        "success": false,
+        "data": null,
+        "message": errorMessage,
+      };
+    }
+  }
 }
