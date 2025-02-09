@@ -2,73 +2,60 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
-import 'package:controlformulaciones/db_helper.dart';
 import 'package:controlformulaciones/services/api_service.dart';
 
 class ReportsScreen extends StatefulWidget {
-  final bool isRemote;
-
-  const ReportsScreen({Key? key, this.isRemote = false}) : super(key: key);
-
   @override
   _ReportsScreenState createState() => _ReportsScreenState();
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  final DBHelper _dbHelper = DBHelper();
   final ApiService _apiService = ApiService();
-  List<Map<String, dynamic>> _procesos = [];
-  List<Map<String, dynamic>> _procesosFiltrados = [];
+  List<Map<String, dynamic>> _reportes = [];
+  List<Map<String, dynamic>> _reportesFiltrados = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadProcesos();
-    _searchController.addListener(_filterProcesos);
+    _loadReportes();
+    _searchController.addListener(_filterReportes);
   }
 
-  void _filterProcesos() {
+  void _filterReportes() {
     final query = _searchController.text.toLowerCase();
     setState(() {
       if (query.isEmpty) {
-        _procesosFiltrados = _procesos;
+        _reportesFiltrados = _reportes;
       } else {
-        _procesosFiltrados = _procesos.where((proceso) {
-          return proceso['nrOp'].toString().contains(query) ||
-                 proceso['numeroPesaje'].toString().contains(query);
+        _reportesFiltrados = _reportes.where((reporte) {
+          return reporte['new_nr_op'].toString().contains(query) ||
+                 reporte['new_nr_pesaje'].toString().contains(query);
         }).toList();
       }
     });
   }
 
-  Future<void> _loadProcesos() async {
+  Future<void> _loadReportes() async {
     setState(() => _isLoading = true);
     try {
-      if (widget.isRemote) {
-        // Cargar desde la API
-        final response = await _apiService.getProcesosRemoto();
-        if (response['success']) {
-          setState(() {
-            _procesos = List<Map<String, dynamic>>.from(response['data']);
-            _procesosFiltrados = _procesos;
-            _isLoading = false;
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'] ?? 'Error al cargar reportes remotos')),
-          );
-        }
-      } else {
-        // Cargar desde SQLite
-        final procesos = await _dbHelper.getProcesos();
+      final response = await _apiService.getPesajesCerrados();
+      if (response['success']) {
         setState(() {
-          _procesos = procesos;
-          _procesosFiltrados = procesos;
+          _reportes = List<Map<String, dynamic>>.from(response['data']);
+          _reportesFiltrados = _reportes;
           _isLoading = false;
         });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['message'] ?? 'Error al cargar reportes')),
+        );
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -78,26 +65,122 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  Future<void> _generarPDF(Map<String, dynamic> reporte) async {
+    try {
+      final pdf = pw.Document();
+      
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (pw.Context context) {
+            return [
+              pw.Header(
+                level: 0,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Detalle de Proceso',
+                        style: pw.TextStyle(fontSize: 24)),
+                    pw.Divider(),
+                    pw.Text('OP: ${reporte['new_nr_op']}',
+                        style: pw.TextStyle(fontSize: 16)),
+                    pw.Text('Máquina: ${reporte['new_maquina']}',
+                        style: pw.TextStyle(fontSize: 16)),
+                    pw.Text('Producto: ${reporte['new_producto_op']}',
+                        style: pw.TextStyle(fontSize: 16)),
+                    pw.Text('Fecha: ${reporte['fecha_apertura']}',
+                        style: pw.TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(1),    // Secuencia
+                  1: const pw.FlexColumnWidth(2),    // Instrucción
+                  2: const pw.FlexColumnWidth(2),    // Producto
+                  3: const pw.FlexColumnWidth(1.5),  // Cantidad
+                  4: const pw.FlexColumnWidth(1),    // Temperatura
+                  5: const pw.FlexColumnWidth(2),    // Observación
+                  6: const pw.FlexColumnWidth(1.5),  // Inicio
+                  7: const pw.FlexColumnWidth(1.5),  // Fin
+                },
+                children: [
+                  // Encabezado
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                    children: [
+                      'Secuencia',
+                      'Instrucción',
+                      'Producto',
+                      'Cantidad',
+                      'Temp.',
+                      'Observación',
+                      'Inicio',
+                      'Fin',
+                    ].map((text) => pw.Container(
+                      alignment: pw.Alignment.center,
+                      padding: pw.EdgeInsets.all(5),
+                      child: pw.Text(text, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    )).toList(),
+                  ),
+                  // Filas de datos
+                  ...(reporte['secuencias'] as List).map((secuencia) {
+                    return pw.TableRow(
+                      children: [
+                        _buildPdfCell(secuencia['new_sec'].toString()),
+                        _buildPdfCell(secuencia['new_oper_maquina'] ?? ''),
+                        _buildPdfCell(secuencia['new_producto_pesaje'] ?? ''),
+                        _buildPdfCell(secuencia['new_ctd_explosion']?.toString() ?? ''),
+                        _buildPdfCell(secuencia['new_temperatura'] != 0 ? '${secuencia['new_temperatura']}°C' : ''),
+                        _buildPdfCell(secuencia['new_observacion'] ?? ''),
+                        _buildPdfCell(_formatDateTime(secuencia['hora_inicio'])),
+                        _buildPdfCell(_formatDateTime(secuencia['hora_fin'])),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      // Guardar el PDF
+      final directory = await getApplicationDocumentsDirectory();
+      final String pdfPath = '${directory.path}/reporte_${reporte['new_nr_op']}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final file = File(pdfPath);
+      await file.writeAsBytes(await pdf.save());
+
+      // Abrir el PDF
+      await OpenFile.open(pdfPath);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF generado correctamente')),
+      );
+
+    } catch (e) {
+      print('Error generando PDF: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al generar el PDF')),
+      );
+    }
+  }
+
+  pw.Widget _buildPdfCell(String text) {
+    return pw.Container(
+      alignment: pw.Alignment.center,
+      padding: pw.EdgeInsets.all(5),
+      child: pw.Text(text, style: pw.TextStyle(fontSize: 9)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isRemote ? 'Reportes Remotos' : 'Reportes Locales'),
-        actions: [
-          if (!widget.isRemote)
-            IconButton(
-              icon: Icon(Icons.cloud),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ReportsScreen(isRemote: true),
-                  ),
-                );
-              },
-              tooltip: 'Ver reportes remotos',
-            ),
-        ],
+        title: Text('Reportes de Procesos'),
       ),
       body: Column(
         children: [
@@ -116,7 +199,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         icon: Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
-                          _filterProcesos();
+                          _filterReportes();
                         },
                       )
                     : null,
@@ -127,69 +210,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Expanded(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator())
-                : _procesosFiltrados.isEmpty
+                : _reportesFiltrados.isEmpty
                     ? Center(child: Text('No hay reportes disponibles'))
                     : ListView.builder(
-                        itemCount: _procesosFiltrados.length,
+                        itemCount: _reportesFiltrados.length,
                         itemBuilder: (context, index) {
-                          final proceso = _procesosFiltrados[index];
+                          final reporte = _reportesFiltrados[index];
                           return Card(
                             margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                             child: ListTile(
                               title: Text(
-                                'OP: ${proceso['nrOp']} - Pesaje: ${proceso['numeroPesaje']}',
+                                'OP: ${reporte['new_nr_op']} - Pesaje: ${reporte['new_nr_pesaje']}',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Máquina: ${proceso['maquina']}'),
-                                  Text('Producto: ${proceso['producto']}'),
-                                  Text('Fecha: ${_formatDateTime(proceso['fecha_proceso'])}'),
+                                  Text('Máquina: ${reporte['new_maquina']}'),
+                                  Text('Producto: ${reporte['new_producto_op']}'),
+                                  Text('Fecha: ${_formatDateTime(reporte['fecha_apertura'])}'),
+                                  Text('Situación: ${reporte['new_situacion']}'),
                                 ],
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (!widget.isRemote && proceso['pdfPath'] != null)
-                                    IconButton(
-                                      icon: Icon(Icons.picture_as_pdf),
-                                      onPressed: () async {
-                                        try {
-                                          final file = File(proceso['pdfPath']);
-                                          if (await file.exists()) {
-                                            await OpenFile.open(proceso['pdfPath']);
-                                          } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text('PDF no encontrado')),
-                                            );
-                                          }
-                                        } catch (e) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('Error al abrir el PDF')),
-                                          );
-                                        }
-                                      },
-                                    ),
+                                  IconButton(
+                                    icon: Icon(Icons.picture_as_pdf),
+                                    onPressed: () => _generarPDF(reporte),
+                                  ),
                                   IconButton(
                                     icon: Icon(Icons.info_outline),
-                                    onPressed: () async {
-                                      if (widget.isRemote) {
-                                        // Obtener detalles desde la API
-                                        final details = await _apiService.getDetalleProcesoRemoto(proceso['id']);
-                                        if (details['success']) {
-                                          _showDetallesProceso(details['data']);
-                                        } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text(details['message'] ?? 'Error al cargar detalles')),
-                                          );
-                                        }
-                                      } else {
-                                        // Obtener detalles desde SQLite
-                                        final details = await _dbHelper.getReporteCompleto(proceso['id']);
-                                        _showDetallesProceso(details);
-                                      }
-                                    },
+                                    onPressed: () => _showDetallesReporte(reporte),
                                   ),
                                 ],
                               ),
@@ -213,7 +265,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  void _showDetallesProceso(Map<String, dynamic> reporte) {
+  void _showDetallesReporte(Map<String, dynamic> reporte) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -223,30 +275,36 @@ class _ReportsScreenState extends State<ReportsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('OP: ${reporte['proceso']['nrOp']}'),
-              Text('Pesaje: ${reporte['proceso']['numeroPesaje']}'),
-              Text('Máquina: ${reporte['proceso']['maquina']}'),
-              Text('Producto: ${reporte['proceso']['producto']}'),
-              Text('Fecha: ${_formatDateTime(reporte['proceso']['fecha_proceso'])}'),
+              Text('OP: ${reporte['new_nr_op']}'),
+              Text('Pesaje: ${reporte['new_nr_pesaje']}'),
+              Text('Máquina: ${reporte['new_maquina']}'),
+              Text('Producto: ${reporte['new_producto_op']}'),
+              Text('Código: ${reporte['new_cod_producto']}'),
+              Text('Fecha: ${_formatDateTime(reporte['fecha_apertura'])}'),
+              Text('Situación: ${reporte['new_situacion']}'),
               Divider(),
               Text('Secuencias:', style: TextStyle(fontWeight: FontWeight.bold)),
-              ...reporte['secuencias'].map<Widget>((secuencia) {
+              ...(reporte['secuencias'] as List).map((secuencia) {
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Secuencia ${secuencia['secuencia']}'),
-                        Text('Instrucción: ${secuencia['instruccion']}'),
-                        if (secuencia['producto'] != null)
-                          Text('Producto: ${secuencia['producto']}'),
+                        Text('Secuencia ${secuencia['new_sec']}'),
+                        Text('Instrucción: ${secuencia['new_oper_maquina']}'),
+                        if (secuencia['new_producto_pesaje'] != null)
+                          Text('Producto: ${secuencia['new_producto_pesaje']}'),
+                        if (secuencia['new_ctd_explosion'] != null)
+                          Text('Cantidad: ${secuencia['new_ctd_explosion']}'),
+                        if (secuencia['new_temperatura'] != null && secuencia['new_temperatura'] != 0)
+                          Text('Temperatura: ${secuencia['new_temperatura']}°C'),
+                        if (secuencia['new_observacion'] != null)
+                          Text('Observación: ${secuencia['new_observacion']}'),
                         if (secuencia['hora_inicio'] != null)
                           Text('Inicio: ${_formatDateTime(secuencia['hora_inicio'])}'),
                         if (secuencia['hora_fin'] != null)
                           Text('Fin: ${_formatDateTime(secuencia['hora_fin'])}'),
-                        if (secuencia['observacion'] != null)
-                          Text('Observación: ${secuencia['observacion']}'),
                       ],
                     ),
                   ),
