@@ -45,3 +45,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logo_login.png
+    - assets/fonts/
+
+  fonts:
+    - family: OpenSans
+      fonts:
+        - asset: assets/fonts/OpenSans-Regular.ttf

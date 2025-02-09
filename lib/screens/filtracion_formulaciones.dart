@@ -195,10 +195,9 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
               else
                 Autocomplete<Map<String, dynamic>>(
                   initialValue: TextEditingValue(
-                    text: _selectedOperacion?['nm_operacao_maquina'] ?? ''
-                  ),
-                  displayStringForOption: (Map<String, dynamic> option) => 
-                    option['nm_operacao_maquina'],
+                      text: _selectedOperacion?['nm_operacao_maquina'] ?? ''),
+                  displayStringForOption: (Map<String, dynamic> option) =>
+                      option['nm_operacao_maquina'],
                   optionsBuilder: (TextEditingValue textEditingValue) {
                     if (textEditingValue.text == '') {
                       return operaciones;
@@ -213,19 +212,22 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                   onSelected: (Map<String, dynamic> selection) {
                     setState(() {
                       _selectedOperacion = selection;
-                      _operacionController.text = selection['nm_operacao_maquina'];
+                      _operacionController.text =
+                          selection['nm_operacao_maquina'];
                     });
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
                       decoration: InputDecoration(
-                        labelText: 'Buscar Operación',
+                        labelText: 'Buscar Operación *',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) =>
-                          _selectedOperacion == null ? 'Seleccione una operación' : null,
+                      validator: (value) => _selectedOperacion == null
+                          ? 'Seleccione una operación'
+                          : null,
                     );
                   },
                 ),
@@ -235,18 +237,23 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
               else
                 Autocomplete<Map<String, dynamic>>(
                   initialValue: TextEditingValue(
-                    text: _selectedProducto?['nombre'] ?? ''
-                  ),
-                  displayStringForOption: (Map<String, dynamic> option) => 
-                    '${option['codigo']} - ${option['nombre']}',
+                      text: _selectedProducto?['nombre'] ?? ''),
+                  displayStringForOption: (Map<String, dynamic> option) =>
+                      '${option['codigo']} - ${option['nombre']}',
                   optionsBuilder: (TextEditingValue textEditingValue) {
                     if (textEditingValue.text == '') {
                       return productos;
                     }
                     return productos.where((producto) {
                       final searchText = textEditingValue.text.toLowerCase();
-                      return producto['nombre'].toString().toLowerCase().contains(searchText) ||
-                             producto['codigo'].toString().toLowerCase().contains(searchText);
+                      return producto['nombre']
+                              .toString()
+                              .toLowerCase()
+                              .contains(searchText) ||
+                          producto['codigo']
+                              .toString()
+                              .toLowerCase()
+                              .contains(searchText);
                     });
                   },
                   onSelected: (Map<String, dynamic> selection) {
@@ -255,7 +262,8 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                       _productoController.text = selection['nombre'];
                     });
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
@@ -263,31 +271,26 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                         labelText: 'Buscar Producto',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) =>
-                          _selectedProducto == null ? 'Seleccione un producto' : null,
                     );
                   },
                 ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _temperaturaController,
-                decoration: InputDecoration(
-                  labelText: 'Temperatura',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _tiempoController,
-                decoration: InputDecoration(
-                  labelText: 'Tiempo (minutos)',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
-              ),
+              // TextFormField(
+              //   controller: _temperaturaController,
+              //   decoration: InputDecoration(
+              //     labelText: 'Temperatura',
+              //     border: OutlineInputBorder(),
+              //   ),
+              //   keyboardType: TextInputType.number,
+              // ),
+              // SizedBox(height: 16),
+              // TextFormField(
+              //   controller: _tiempoController,
+              //   decoration: InputDecoration(
+              //     labelText: 'Tiempo (minutos)',
+              //     border: OutlineInputBorder(),
+              //   ),
+              //   keyboardType: TextInputType.number,
+              // ),
               SizedBox(height: 16),
               TextFormField(
                 controller: _ctdExplosionController,
@@ -321,16 +324,20 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
               Navigator.pop(context, {
                 'secuencia': widget.prevSecuencia + 0.1,
                 'instruccion': _selectedOperacion!['nm_operacao_maquina'],
-                'producto': _selectedProducto!['nombre'],
-                'codigoProducto': _selectedProducto!['codigo'],
-                'temperatura': double.parse(_temperaturaController.text),
-                'tiempo': int.parse(_tiempoController.text),
-                'ctdExplosion': _ctdExplosionController.text.isEmpty
-                    ? null
-                    : double.parse(_ctdExplosionController.text),
-                'observacion': _observacionController.text.isEmpty
-                    ? null
-                    : _observacionController.text,
+                'producto': _selectedProducto?['nombre'],
+                'codigoProducto': _selectedProducto?['codigo'],
+                'temperatura': _temperaturaController.text.isNotEmpty
+                    ? double.parse(_temperaturaController.text)
+                    : 0.0,
+                'tiempo': _tiempoController.text.isNotEmpty
+                    ? int.parse(_tiempoController.text)
+                    : 0,
+                'ctdExplosion': _ctdExplosionController.text.isNotEmpty
+                    ? double.parse(_ctdExplosionController.text)
+                    : null,
+                'observacion': _observacionController.text.isNotEmpty
+                    ? _observacionController.text
+                    : null,
               });
             }
           },
@@ -371,6 +378,32 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
       ..sort((a, b) => a.sec.compareTo(b.sec));
     context.read<TimerProvider>().initNotifications();
   }
+
+  // Función auxiliar para determinar si el checkbox debe estar deshabilitado
+bool _isCheckboxDisabled(int index) {
+  final item = items[index];
+  
+  // Si ya está completada y tiene hora de fin, no se puede desmarcar
+  if (item.checked && _endTimes.containsKey(index)) {
+    return true;
+  }
+  
+  // Verificar si hay secuencias posteriores que se hayan marcado
+  bool haySecuenciaPosteriorMarcada = false;
+  for (int i = index + 1; i < items.length; i++) {
+    if (items[i].checked) {
+      haySecuenciaPosteriorMarcada = true;
+      break;
+    }
+  }
+  
+  // Si hay una secuencia posterior marcada, esta secuencia queda bloqueada
+  if (haySecuenciaPosteriorMarcada) {
+    return true;
+  }
+  
+  return false;
+}
 
   String _formatTime(int seconds) {
     int minutes = seconds ~/ 60;
@@ -421,7 +454,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
           idPesagemItem: 0,
           nrOp: prevItem.nrOp,
           numeroPesaje: prevItem.numeroPesaje,
-          codProducto: result['codigoProducto'],
+          codProducto: result['codigoProducto'] ?? '',
           productoOp: prevItem.productoOp,
           maquina: prevItem.maquina,
           sec: double.parse('${prevItem.sec}.1').round(),
@@ -430,7 +463,7 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
           minutos: result['tiempo'],
           situacion: prevItem.situacion,
           fechaApertura: prevItem.fechaApertura,
-          productoPesaje: result['producto'],
+          productoPesaje: result['producto'] ?? '',
           ctdExplosion: result['ctdExplosion'],
           observacion: result['observacion'],
         );
@@ -523,79 +556,120 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     );
   }
 
+  Future<pw.Font> _loadFont() async {
+    final fontData = await rootBundle
+        .load("packages/pdf/src/fonts/open_sans/OpenSans-Regular.ttf");
+    return pw.Font.ttf(fontData.buffer.asByteData());
+  }
+
   Future<pw.Document> _generarPDF() async {
+    // Filtrar solo las secuencias iniciadas
+    final iniciadas = items.asMap().entries.where((entry) => 
+      _startTimes.containsKey(entry.key)
+    ).toList();
+
     final pdf = pw.Document();
 
     pdf.addPage(
-      pw.MultiPage(
+      pw.Page(
         pageFormat: PdfPageFormat.a4.landscape,
         build: (pw.Context context) {
-          return [
-            pw.Header(
-              level: 0,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('Detalle de Proceso',
-                      style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.Divider(),
-                  pw.Text('OP: ${widget.pesajeItem.nrOp}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  pw.Text('Máquina: ${widget.pesajeItem.maquina}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  pw.Text('Producto: ${widget.pesajeItem.productoOp}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  
-                  pw.Text('Fecha Proceso: ${widget.pesajeItem.fechaApertura}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  pw.Text('Fecha Generación: ${DateTime.now().toIso8601String()}',
-                      style: pw.TextStyle(fontSize: 16)),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.TableHelper.fromTextArray(
-              context: context,
-              headers: [
-                'Secuencia',
-                'Instrucción',
-                'Producto',
-                'Temperatura',
-
-                'Ctd Explosión',
-                'Observación',
-
-                'Inicio',
-                'Fin'
-              ],
-              data: items.asMap().entries.map((entry) {
-                int idx = entry.key;
-                FormulationItem item = entry.value;
-                return [
-                  item.sec.toString(),
-                  item.operMaquina,
-                  item.productoPesaje ?? '',
-                  '${item.temperatura}°C',
-   
-                  item.ctdExplosion?.toString() ?? '',
-                  item.observacion ?? '',
-                  _startTimes[idx]?.toIso8601String() ?? '',
-                  _endTimes[idx]?.toIso8601String() ?? '',
-                ];
-              }).toList(),
-              cellAlignment: pw.Alignment.center,
-              cellStyle: pw.TextStyle(fontSize: 10),
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            ),
-          ];
-        },
-        footer: (pw.Context context) {
           return pw.Container(
-            alignment: pw.Alignment.centerRight,
-            margin: const pw.EdgeInsets.only(top: 10),
-            child: pw.Text(
-              'Página ${context.pageNumber} de ${context.pagesCount}',
-              style: pw.TextStyle(fontSize: 10),
+            child: pw.Column(
+              children: [
+                pw.Container(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('Usuario Responsable',
+                              style: const pw.TextStyle(fontSize: 14)),
+                          pw.Text(
+                              'OP: ${widget.pesajeItem.nrOp} - Maq.: ${widget.pesajeItem.maquina}',
+                              style: const pw.TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                      pw.SizedBox(height: 20),
+                      pw.Text('Producto: ${widget.pesajeItem.productoOp}',
+                          style: const pw.TextStyle(fontSize: 12)),
+                      pw.Text('Fecha: ${widget.pesajeItem.fechaApertura}',
+                          style: const pw.TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+                pw.Table(
+                  border: pw.TableBorder.all(width: 0.5),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(1),    // Secuencia
+                    1: const pw.FlexColumnWidth(2),    // Instrucción
+                    2: const pw.FlexColumnWidth(2),    // Producto
+                    3: const pw.FlexColumnWidth(1.5),  // Ctd Explosión
+                    4: const pw.FlexColumnWidth(2),    // Observación
+                    5: const pw.FlexColumnWidth(1),    // Inicio
+                    6: const pw.FlexColumnWidth(1),    // Fin
+                  },
+                  children: [
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.grey300,
+                      ),
+                      children: [
+                        'Secuencia',
+                        'Instrucción',
+                        'Producto',
+                        'Cantidad/Control',
+                        'Observación',
+                        'Hora Inicio',
+                        'Hora Fin',
+                      ].map((text) => pw.Container(
+                        padding: const pw.EdgeInsets.all(5),
+                        alignment: pw.Alignment.center,
+                        child: pw.Text(
+                          text,
+                          style: pw.TextStyle(fontSize: 10),
+                        ),
+                      )).toList(),
+                    ),
+                    ...iniciadas.map((entry) {
+                      int idx = entry.key;
+                      FormulationItem item = entry.value;
+                      String formatDateTime(DateTime? dateTime) {
+                        if (dateTime == null) return '';
+                        return DateFormat('HH:mm').format(dateTime);
+                      }
+                      return pw.TableRow(
+                        children: [
+                          _buildPdfCell(item.sec.toString()),
+                          _buildPdfCell(item.operMaquina),
+                          _buildPdfCell(item.productoPesaje ?? ''),
+                          _buildPdfCell(item.ctdExplosion?.toString() ?? ''),
+                          _buildPdfCell(item.observacion ?? ''),
+                          _buildPdfCell(formatDateTime(_startTimes[idx])),
+                          _buildPdfCell(formatDateTime(_endTimes[idx])),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+                pw.Spacer(),
+                pw.Container(
+                  alignment: pw.Alignment.centerRight,
+                  margin: const pw.EdgeInsets.only(top: 10),
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(width: 0.5),
+                    ),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    // child: pw.Text(
+                    //   'Tiempo Total Fórmula: ${_calcularTiempoTotal()}',
+                    //   style: const pw.TextStyle(fontSize: 10),
+                    // ),
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -605,6 +679,24 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     return pdf;
   }
 
+  pw.Widget _buildPdfCell(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(5),
+      alignment: pw.Alignment.center,
+      child: pw.Text(
+        text,
+        style: const pw.TextStyle(fontSize: 9),
+      ),
+    );
+  }
+
+  String _calcularTiempoTotal() {
+    int tiempoTotal = 0;
+    for (var item in items) {
+      tiempoTotal += item.minutos;
+    }
+    return tiempoTotal.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -679,28 +771,87 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                                 ),
                                 cells: [
                                   DataCell(Checkbox(
-                                    value: item.checked,
-                                    onChanged: (bool? value) {
-                                      setState(() {
-                                        item.checked = value ?? false;
-                                        if (value == true) {
-                                          _startTimes[idx] = DateTime.now();
-                                          if (item.minutos > 0) {
-                                            timerProvider.startTimer(
-                                              idx,
-                                              item.minutos,
-                                              widget.pesajeItem.maquina,
-                                              item.sec.toString(),
-                                            );
-                                          }
-                                        } else {
-                                          _endTimes[idx] = DateTime.now();
-                                          timerProvider.stopTimer(idx);
-                                        }
-                                        _updateRowStatuses(idx);
-                                      });
-                                    },
-                                  )),
+  value: item.checked,
+  onChanged: _isCheckboxDisabled(idx) ? null : (bool? value) async {
+    // Si estamos intentando marcar una nueva secuencia
+    if (value == true) {
+      // Buscar si hay una secuencia anterior con temporizador activo
+      int currentIndex = idx;
+      int previousActiveIndex = -1;
+      
+      for (int i = 0; i < items.length; i++) {
+        if (i != currentIndex && 
+            items[i].checked && 
+            timerProvider.remainingSeconds.containsKey(i) &&
+            !_endTimes.containsKey(i)) {
+          previousActiveIndex = i;
+          break;
+        }
+      }
+
+      // Si encontramos una secuencia activa anterior
+      if (previousActiveIndex != -1) {
+        // Preguntar si desea finalizar la secuencia anterior
+        bool? finalizarAnterior = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Secuencia Activa'),
+              content: Text('¿Desea finalizar la secuencia ${items[previousActiveIndex].sec} antes de iniciar la nueva?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text('Finalizar y Continuar'),
+                ),
+              ],
+            );
+          },
+        );
+
+        // Si el usuario canceló, no hacemos nada
+        if (finalizarAnterior == null || !finalizarAnterior) {
+          return;
+        }
+
+        // Finalizar la secuencia anterior
+        setState(() {
+          _endTimes[previousActiveIndex] = DateTime.now();
+          timerProvider.stopTimer(previousActiveIndex);
+        });
+      }
+
+      // Iniciar la nueva secuencia
+      setState(() {
+        item.checked = true;
+        _startTimes[idx] = DateTime.now();
+        if (item.minutos > 0) {
+          timerProvider.startTimer(
+            idx,
+            item.minutos,
+            widget.pesajeItem.maquina,
+            item.sec.toString(),
+          );
+        }
+        _updateRowStatuses(idx);
+      });
+    } 
+    // Si estamos intentando desmarcar una secuencia
+    else if (!_endTimes.containsKey(idx)) {
+      // Solo permitir desmarcar si no está finalizada
+      setState(() {
+        item.checked = false;
+        _endTimes[idx] = DateTime.now();
+        timerProvider.stopTimer(idx);
+        _updateRowStatuses(idx);
+      });
+    }
+  },
+)),
                                   DataCell(Text('${item.sec}')),
                                   DataCell(
                                     GestureDetector(

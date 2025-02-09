@@ -124,7 +124,11 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     setState(() {
       _filteredItems = query.isEmpty
           ? items
-          : items.where((item) => item.nrOp.toString().contains(query)).toList();
+          : items
+              .where((item) =>
+                  item.nrOp.toString().contains(query) ||
+                  item.numeroPesaje.toString().contains(query))
+              .toList();
     });
   }
 
@@ -151,7 +155,8 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     if (_filteredItems.isEmpty)
       return Center(child: Text('No hay pesajes activos'));
 
-    var groupedByOP = groupBy(_filteredItems, (FormulationItem item) => item.nrOp);
+    var groupedByOP =
+        groupBy(_filteredItems, (FormulationItem item) => item.nrOp);
     var sortedOPs = groupedByOP.keys.toList()..sort();
 
     return ListView.builder(
@@ -160,12 +165,14 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
         int op = sortedOPs[index];
         List<FormulationItem> opItems = groupedByOP[op]!;
 
-        var groupedByMaquina = groupBy(opItems, (FormulationItem item) => item.maquina);
-        var sortedMaquinas = groupedByMaquina.keys.toList()..sort((a, b) {
-          final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-          final numB = int.tryParse(b.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-          return numA.compareTo(numB);
-        });
+        var groupedByMaquina =
+            groupBy(opItems, (FormulationItem item) => item.maquina);
+        var sortedMaquinas = groupedByMaquina.keys.toList()
+          ..sort((a, b) {
+            final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+            final numB = int.tryParse(b.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+            return numA.compareTo(numB);
+          });
 
         return Card(
           margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -221,7 +228,8 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
                     ),
                     trailing: IconButton(
                       onPressed: () async {
-                        final updatedItems = await Navigator.push<List<FormulationItem>>(
+                        final updatedItems =
+                            await Navigator.push<List<FormulationItem>>(
                           context,
                           MaterialPageRoute(
                             builder: (context) => FiltracionFormulaciones(
@@ -234,9 +242,9 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
                         if (updatedItems != null) {
                           setState(() {
                             for (var updatedItem in updatedItems) {
-                              final index = items.indexWhere(
-                                (item) => item.idPesagemItem == updatedItem.idPesagemItem
-                              );
+                              final index = items.indexWhere((item) =>
+                                  item.idPesagemItem ==
+                                  updatedItem.idPesagemItem);
                               if (index != -1) {
                                 items[index] = updatedItem;
                               }
@@ -376,7 +384,7 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Buscar por número de OP',
+                hintText: 'Buscar por OP o número de pesaje',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25.0),
