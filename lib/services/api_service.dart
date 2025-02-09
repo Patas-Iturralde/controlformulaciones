@@ -234,4 +234,77 @@ class ApiService {
       };
     }
   }
+
+  // Agregar este nuevo método a la clase ApiService
+
+  Future<Map<String, dynamic>> sincronizarPesaje({
+    required Map<String, dynamic> proceso,
+    required List<Map<String, dynamic>> secuencias,
+  }) async {
+    final url = Uri.parse("$baseUrl/api/sincronizar_pesaje");
+    final headers = await _getHeaders();
+
+    try {
+      final body = jsonEncode({
+        "proceso": {
+          "nrOp": proceso['nrOp'],
+          "codProducto": proceso['codProducto'],
+          "producto": proceso['producto'],
+          "numeroPesaje": proceso['numeroPesaje'],
+          "fecha_proceso": proceso['fecha_proceso'],
+          "maquina": proceso['maquina'],
+          "situacion": proceso['situacion'],
+        },
+        "secuencias": secuencias.map((secuencia) => {
+          "secuencia": secuencia['secuencia'],
+          "instruccion": secuencia['instruccion'],
+          "producto": secuencia['producto'],
+          "codigo_escaneado": secuencia['codigo_escaneado'],
+          "ctd_explosion": secuencia['ctd_explosion'],
+          "temperatura": secuencia['temperatura'],
+          "tiempo": secuencia['tiempo'],
+          "observacion": secuencia['observacion'],
+          "hora_inicio": secuencia['hora_inicio'],
+          "hora_fin": secuencia['hora_fin'],
+        }).toList(),
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+      
+      if (response.statusCode == 401) {
+        final tokenService = await TokenService.getInstance();
+        await tokenService.logout();
+        return {
+          "success": false,
+          "message": "Sesión expirada",
+          "sessionExpired": true
+        };
+      }
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        return {
+          "success": true,
+          "message": "Datos sincronizados correctamente",
+        };
+      } else {
+        return {
+          "success": false,
+          "message": data["detail"] ?? "Error al sincronizar los datos",
+        };
+      }
+    } catch (e) {
+      String errorMessage = "Error de conexión";
+      
+      if (e.toString().contains("SocketException")) {
+        errorMessage = "No hay conexión a internet. Por favor, verifica tu conexión";
+      }
+
+      return {
+        "success": false,
+        "message": errorMessage,
+      };
+    }
+  }
 }
