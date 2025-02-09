@@ -37,9 +37,25 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/logo_login.png"
-  adaptive_icon_background: "#ffffff"
+  adaptive_icon_background: "#ffffff"  
   adaptive_icon_foreground: "assets/images/logo_login.png"
   min_sdk_android: 21
+  # Configuraciones específicas para Android
+  android_adaptiveicon_padding: true   # Agrega padding al ícono adaptable
+  android_gravity: center              # Centra el ícono
+  android_scale_type: center           # Tipo de escalado
+
+  android_res_folders:
+    - "android/app/src/main/res/"
+  android_sizes:
+    - mdpi    # 48x48
+    - hdpi    # 72x72
+    - xhdpi   # 96x96
+    - xxhdpi  # 144x144
+    - xxxhdpi # 192x192
+  # Configuraciones específicas para iOS
+  ios_content_mode: center  
+  remove_alpha_ios: true 
 
 flutter:
   uses-material-design: true
