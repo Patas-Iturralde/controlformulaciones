@@ -195,10 +195,9 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
               else
                 Autocomplete<Map<String, dynamic>>(
                   initialValue: TextEditingValue(
-                    text: _selectedOperacion?['nm_operacao_maquina'] ?? ''
-                  ),
-                  displayStringForOption: (Map<String, dynamic> option) => 
-                    option['nm_operacao_maquina'],
+                      text: _selectedOperacion?['nm_operacao_maquina'] ?? ''),
+                  displayStringForOption: (Map<String, dynamic> option) =>
+                      option['nm_operacao_maquina'],
                   optionsBuilder: (TextEditingValue textEditingValue) {
                     if (textEditingValue.text == '') {
                       return operaciones;
@@ -213,10 +212,12 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                   onSelected: (Map<String, dynamic> selection) {
                     setState(() {
                       _selectedOperacion = selection;
-                      _operacionController.text = selection['nm_operacao_maquina'];
+                      _operacionController.text =
+                          selection['nm_operacao_maquina'];
                     });
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
@@ -224,8 +225,9 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                         labelText: 'Buscar Operación *',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) =>
-                          _selectedOperacion == null ? 'Seleccione una operación' : null,
+                      validator: (value) => _selectedOperacion == null
+                          ? 'Seleccione una operación'
+                          : null,
                     );
                   },
                 ),
@@ -235,18 +237,23 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
               else
                 Autocomplete<Map<String, dynamic>>(
                   initialValue: TextEditingValue(
-                    text: _selectedProducto?['nombre'] ?? ''
-                  ),
-                  displayStringForOption: (Map<String, dynamic> option) => 
-                    '${option['codigo']} - ${option['nombre']}',
+                      text: _selectedProducto?['nombre'] ?? ''),
+                  displayStringForOption: (Map<String, dynamic> option) =>
+                      '${option['codigo']} - ${option['nombre']}',
                   optionsBuilder: (TextEditingValue textEditingValue) {
                     if (textEditingValue.text == '') {
                       return productos;
                     }
                     return productos.where((producto) {
                       final searchText = textEditingValue.text.toLowerCase();
-                      return producto['nombre'].toString().toLowerCase().contains(searchText) ||
-                             producto['codigo'].toString().toLowerCase().contains(searchText);
+                      return producto['nombre']
+                              .toString()
+                              .toLowerCase()
+                              .contains(searchText) ||
+                          producto['codigo']
+                              .toString()
+                              .toLowerCase()
+                              .contains(searchText);
                     });
                   },
                   onSelected: (Map<String, dynamic> selection) {
@@ -255,7 +262,8 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                       _productoController.text = selection['nombre'];
                     });
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
@@ -266,24 +274,23 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                     );
                   },
                 ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _temperaturaController,
-                decoration: InputDecoration(
-                  labelText: 'Temperatura',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _tiempoController,
-                decoration: InputDecoration(
-                  labelText: 'Tiempo (minutos)',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
+              // TextFormField(
+              //   controller: _temperaturaController,
+              //   decoration: InputDecoration(
+              //     labelText: 'Temperatura',
+              //     border: OutlineInputBorder(),
+              //   ),
+              //   keyboardType: TextInputType.number,
+              // ),
+              // SizedBox(height: 16),
+              // TextFormField(
+              //   controller: _tiempoController,
+              //   decoration: InputDecoration(
+              //     labelText: 'Tiempo (minutos)',
+              //     border: OutlineInputBorder(),
+              //   ),
+              //   keyboardType: TextInputType.number,
+              // ),
               SizedBox(height: 16),
               TextFormField(
                 controller: _ctdExplosionController,
@@ -319,10 +326,10 @@ class _TrabajoAdicionalDialogState extends State<TrabajoAdicionalDialog> {
                 'instruccion': _selectedOperacion!['nm_operacao_maquina'],
                 'producto': _selectedProducto?['nombre'],
                 'codigoProducto': _selectedProducto?['codigo'],
-                'temperatura': _temperaturaController.text.isNotEmpty 
+                'temperatura': _temperaturaController.text.isNotEmpty
                     ? double.parse(_temperaturaController.text)
                     : 0.0,
-                'tiempo': _tiempoController.text.isNotEmpty 
+                'tiempo': _tiempoController.text.isNotEmpty
                     ? int.parse(_tiempoController.text)
                     : 0,
                 'ctdExplosion': _ctdExplosionController.text.isNotEmpty
@@ -524,78 +531,109 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
   }
 
   Future<pw.Document> _generarPDF() async {
+    // Filtrar solo las secuencias iniciadas
+    final iniciadas = items
+        .asMap()
+        .entries
+        .where((entry) => _startTimes.containsKey(entry.key))
+        .toList();
+
     final pdf = pw.Document();
 
     pdf.addPage(
-      pw.MultiPage(
+      pw.Page(
         pageFormat: PdfPageFormat.a4.landscape,
         build: (pw.Context context) {
-          return [
-            pw.Header(
-              level: 0,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('Detalle de Proceso',
-                      style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.Divider(),
-                  pw.Text('OP: ${widget.pesajeItem.nrOp}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  pw.Text('Máquina: ${widget.pesajeItem.maquina}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  pw.Text('Producto: ${widget.pesajeItem.productoOp}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  
-                  pw.Text('Fecha Proceso: ${widget.pesajeItem.fechaApertura}',
-                      style: pw.TextStyle(fontSize: 16)),
-                  pw.Text('Fecha Generación: ${DateTime.now().toIso8601String()}',
-                      style: pw.TextStyle(fontSize: 16)),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.TableHelper.fromTextArray(
-              context: context,
-              headers: [
-                'Secuencia',
-                'Instrucción',
-                'Producto',
-                'Temperatura',
-
-                'Ctd Explosión',
-                'Observación',
-
-                'Inicio',
-                'Fin'
-              ],
-              data: items.asMap().entries.map((entry) {
-                int idx = entry.key;
-                FormulationItem item = entry.value;
-                return [
-                  item.sec.toString(),
-                  item.operMaquina,
-                  item.productoPesaje ?? '',
-                  '${item.temperatura}°C',
-   
-                  item.ctdExplosion?.toString() ?? '',
-                  item.observacion ?? '',
-                  _startTimes[idx]?.toIso8601String() ?? '',
-                  _endTimes[idx]?.toIso8601String() ?? '',
-                ];
-              }).toList(),
-              cellAlignment: pw.Alignment.center,
-              cellStyle: pw.TextStyle(fontSize: 10),
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            ),
-          ];
-        },
-        footer: (pw.Context context) {
           return pw.Container(
-            alignment: pw.Alignment.centerRight,
-            margin: const pw.EdgeInsets.only(top: 10),
-            child: pw.Text(
-              'Página ${context.pageNumber} de ${context.pagesCount}',
-              style: pw.TextStyle(fontSize: 10),
+            child: pw.Column(
+              children: [
+                pw.Header(
+                  level: 0,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Detalle de Proceso',
+                          style: pw.TextStyle(fontSize: 24)),
+                      pw.Divider(),
+                      pw.Text('OP: ${widget.pesajeItem.nrOp}',
+                          style: pw.TextStyle(fontSize: 16)),
+                      pw.Text('Máquina: ${widget.pesajeItem.maquina}',
+                          style: pw.TextStyle(fontSize: 16)),
+                      pw.Text('Producto: ${widget.pesajeItem.productoOp}',
+                          style: pw.TextStyle(fontSize: 16)),
+                      pw.Text(
+                          'Fecha Proceso: ${widget.pesajeItem.fechaApertura}',
+                          style: pw.TextStyle(fontSize: 16)),
+                      pw.Text(
+                          'Fecha Generación: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                          style: pw.TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+                pw.Table(
+                  border: pw.TableBorder.all(),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(1), // Secuencia
+                    1: const pw.FlexColumnWidth(2), // Instrucción
+                    2: const pw.FlexColumnWidth(2), // Producto
+                    3: const pw.FlexColumnWidth(1.5), // Ctd Explosión
+                    4: const pw.FlexColumnWidth(2), // Observación
+                    5: const pw.FlexColumnWidth(1), // Inicio
+                    6: const pw.FlexColumnWidth(1), // Fin
+                  },
+                  children: [
+                    // Encabezado
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.grey300,
+                      ),
+                      children: [
+                        'Secuencia',
+                        'Instrucción',
+                        'Producto',
+                        'Ctd Explosión',
+                        'Observación',
+                        'Inicio',
+                        'Fin',
+                      ]
+                          .map((text) => pw.Container(
+                                padding: pw.EdgeInsets.all(5),
+                                alignment: pw.Alignment.center,
+                                child: pw.Text(
+                                  text,
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                    // Datos
+                    ...iniciadas.map((entry) {
+                      int idx = entry.key;
+                      FormulationItem item = entry.value;
+                      String formatDateTime(DateTime? dateTime) {
+                        if (dateTime == null) return '';
+                        return DateFormat('HH:mm').format(dateTime);
+                      }
+
+                      return pw.TableRow(
+                        children: [
+                          _buildPdfCell(item.sec.toString()),
+                          _buildPdfCell(item.operMaquina),
+                          _buildPdfCell(item.productoPesaje ?? ''),
+                          _buildPdfCell(item.ctdExplosion?.toString() ?? ''),
+                          _buildPdfCell(item.observacion ?? ''),
+                          _buildPdfCell(formatDateTime(_startTimes[idx])),
+                          _buildPdfCell(formatDateTime(_endTimes[idx])),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ],
             ),
           );
         },
@@ -605,6 +643,17 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
     return pdf;
   }
 
+  // Helper method para crear celdas de la tabla
+  pw.Widget _buildPdfCell(String text) {
+    return pw.Container(
+      padding: pw.EdgeInsets.all(5),
+      alignment: pw.Alignment.center,
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontSize: 9),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
