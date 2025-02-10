@@ -6,7 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:controlformulaciones/provider/timer_provider.dart';
-import 'package:controlformulaciones/db_helper.dart';
+import 'package:controlformulaciones/data/db_helper.dart';
 import 'package:controlformulaciones/screens/control_formulaciones.dart';
 import 'package:controlformulaciones/services/api_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -22,6 +22,7 @@ class ScanDialog extends StatefulWidget {
   _ScanDialogState createState() => _ScanDialogState();
 }
 
+//Pantalla de dialogo para codigo de barras o QR
 class _ScanDialogState extends State<ScanDialog> {
   final TextEditingController _codeController = TextEditingController();
   String? _scannedCode;

@@ -65,6 +65,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  //Generar PDF
   Future<void> _generarPDF(Map<String, dynamic> reporte) async {
     try {
       final pdf = pw.Document();
@@ -184,6 +185,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
       body: Column(
         children: [
+          //Buscador por OP o pesaje
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
@@ -255,6 +257,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  //Formatea la fecha
   String _formatDateTime(String? dateTimeStr) {
     if (dateTimeStr == null) return 'N/A';
     try {
@@ -265,6 +268,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  //Mostrar reportes
   void _showDetallesReporte(Map<String, dynamic> reporte) {
     showDialog(
       context: context,

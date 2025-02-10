@@ -33,7 +33,7 @@ class TimerProvider with ChangeNotifier {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
   }
-
+  //Metodo para iniciar el tiempo y notificar cuanto queda
   void startTimer(int index, int minutes, String maquina, String secuencia) {
     _remainingSeconds[index] = minutes * 60;
     _timers[index]?.cancel();
@@ -64,7 +64,7 @@ class TimerProvider with ChangeNotifier {
       }
     });
   }
-
+  //Finalizar tiempo
   void stopTimer(int index) {
     _timers[index]?.cancel();
     _timers.remove(index);
@@ -78,14 +78,14 @@ class TimerProvider with ChangeNotifier {
     _remainingSeconds.clear();
     notifyListeners();
   }
-
+  //Formato de fecha
   String _getFormattedDateTime() {
     DateTime now = DateTime.now();
     String formattedTime = "${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}";
     String formattedDate = "${now.day.toString().padLeft(2,'0')}/${now.month.toString().padLeft(2,'0')}/${now.year}";
     return "Fecha: $formattedDate\nHora: $formattedTime";
   }
-
+  //Notificacion de inicio
   Future<void> _showInitNotification(String maquina, String secuencia, int minutes) async {
     DateTime endTime = DateTime.now().add(Duration(minutes: minutes));
     String formattedEndTime = "${endTime.hour.toString().padLeft(2,'0')}:${endTime.minute.toString().padLeft(2,'0')}";
@@ -96,7 +96,7 @@ class TimerProvider with ChangeNotifier {
       "Se inició el proceso en secuencia $secuencia con duración de $minutes minutos.\nFinalizará el $formattedEndDate a las $formattedEndTime"
     );
   }
-
+  //Maneja como se muestran notificaiones 
   Future<void> _showNotification(String title, String body) async {
     const androidDetails = AndroidNotificationDetails(
       'timer_channel',

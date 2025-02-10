@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'token_service.dart';
 
+//Establecer api base y header
 class ApiService {
   final String baseUrl = "http://192.168.0.116:5000";
 
@@ -22,6 +23,7 @@ class ApiService {
     return headers;
   }
 
+  //Metodo Login
   Future<Map<String, dynamic>> login(String username, String password) async {
     final url = Uri.parse("$baseUrl/api/login");
     final headers = await _getHeaders(includeToken: false);
@@ -73,6 +75,7 @@ class ApiService {
     }
   }
 
+  //Pesajes abiertos
   Future<Map<String, dynamic>> getPesajesAbiertos() async {
     final url = Uri.parse("$baseUrl/api/pesajes_abiertos");
     final headers = await _getHeaders();
@@ -121,6 +124,7 @@ class ApiService {
     }
   }
 
+  //Productos químicos
   Future<Map<String, dynamic>> getProductosQuimicos() async {
     final url = Uri.parse("$baseUrl/api/productos_quimicos");
     final headers = await _getHeaders();
@@ -178,6 +182,7 @@ class ApiService {
     }
   }
 
+  //Operaciones
   Future<Map<String, dynamic>> getOperaciones() async {
     final url = Uri.parse("$baseUrl/api/operaciones");
     final headers = await _getHeaders();
@@ -235,6 +240,7 @@ class ApiService {
     }
   }
 
+  //Sincronizacion pesajes
   Future<Map<String, dynamic>> sincronizarPesaje({
     required Map<String, dynamic> proceso,
     required List<Map<String, dynamic>> secuencias,
@@ -306,6 +312,7 @@ class ApiService {
     }
   }
 
+  //Procesos remotos
   Future<Map<String, dynamic>> getProcesosRemoto() async {
     final url = Uri.parse("$baseUrl/api/procesos");
     final headers = await _getHeaders();
@@ -362,6 +369,7 @@ class ApiService {
     }
   }
 
+  //Detalles del proceso remoto
   Future<Map<String, dynamic>> getDetalleProcesoRemoto(int procesoId) async {
     final url = Uri.parse("$baseUrl/api/procesos/$procesoId");
     final headers = await _getHeaders();
@@ -418,6 +426,7 @@ class ApiService {
     }
   }
 
+  //Procesos cerrados
   Future<Map<String, dynamic>> getPesajesCerrados() async {
     final url = Uri.parse("$baseUrl/api/pesajes_cerrados");
     final headers = await _getHeaders();

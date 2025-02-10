@@ -206,7 +206,7 @@ class DBHelper {
       tableSecuencias,
       {
         'completado': 1,
-        'hora_fin': horaFin.toIso8601String(),
+        'hora_fin': horaFin.toIso8601String(), //Captura la hora de finalizacion 
       },
       where: 'id = ?',
       whereArgs: [id],
