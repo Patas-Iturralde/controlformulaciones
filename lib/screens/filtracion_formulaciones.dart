@@ -978,6 +978,10 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                     ElevatedButton(
                       onPressed: () {
                         setState(() {
+                          // Restaurar la lista original de items
+                          items = List.from(widget.bomboItems)
+                            ..sort((a, b) => a.sec.compareTo(b.sec));
+                          // Reiniciar el estado de cada item
                           for (var item in items) {
                             item.checked = false;
                             item.status = RowStatus.pending;
