@@ -977,20 +977,90 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                   children: [
                     ElevatedButton(
                       onPressed: () {
-                        setState(() {
-                          // Restaurar la lista original de items
-                          items = List.from(widget.bomboItems)
-                            ..sort((a, b) => a.sec.compareTo(b.sec));
-                          // Reiniciar el estado de cada item
-                          for (var item in items) {
-                            item.checked = false;
-                            item.status = RowStatus.pending;
-                            item.codigoEscaneado = null;
-                          }
-                          timerProvider.stopAllTimers();
-                          _startTimes.clear();
-                          _endTimes.clear();
-                        });
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Row(
+                                children: [
+                                  Icon(Icons.warning_amber_rounded,
+                                      color: Colors.orange, size: 30),
+                                  SizedBox(width: 10),
+                                  Text('Confirmar Reinicio'),
+                                ],
+                              ),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      '¿Está seguro que desea reiniciar el proceso?',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  SizedBox(height: 10),
+                                  Text('Se eliminará:',
+                                      style: TextStyle(color: Colors.red)),
+                                  Padding(
+                                    padding: EdgeInsets.only(left: 10),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                            '• Los pasos adicionales que se hayan agregado'),
+                                        Text('• El progreso de los checkboxes'),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                      'Los valores originales de las columnas se mantendrán.',
+                                      style: TextStyle(
+                                          fontStyle: FontStyle.italic)),
+                                ],
+                              ),
+                              actions: [
+                                TextButton.icon(
+                                  onPressed: () => Navigator.pop(context),
+                                  icon: Icon(Icons.cancel_outlined),
+                                  label: Text('Cancelar'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.grey,
+                                  ),
+                                ),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    setState(() {
+                                      // Solo restaurar la lista original sin los pasos adicionales
+                                      items = List.from(widget.bomboItems)
+                                        ..sort(
+                                            (a, b) => a.sec.compareTo(b.sec));
+
+                                      // Solo reiniciar los checkboxes y estados
+                                      for (var item in items) {
+                                        item.checked = false;
+                                        item.status = RowStatus.pending;
+                                      }
+
+                                      // Limpiar temporizadores
+                                      timerProvider.stopAllTimers();
+                                      _startTimes.clear();
+                                      _endTimes.clear();
+                                    });
+                                  },
+                                  icon: Icon(Icons.refresh),
+                                  label: Text('Reiniciar'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         padding:
