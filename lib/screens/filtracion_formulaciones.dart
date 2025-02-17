@@ -1073,141 +1073,140 @@ class _FiltracionFormulacionesState extends State<FiltracionFormulaciones> {
                     ),
                     SizedBox(width: 10),
                     ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          // Obtener directorio para guardar el PDF
-                          final directory =
-                              await getApplicationDocumentsDirectory();
-                          final String pdfPath =
-                              '${directory.path}/reporte_${widget.pesajeItem.nrOp}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+  onPressed: () async {
+    try {
+      // Obtener directorio para guardar el PDF
+      final directory = await getApplicationDocumentsDirectory();
+      final String pdfPath = '${directory.path}/reporte_${widget.pesajeItem.nrOp}_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-                          // Preparar datos del proceso
-                          Map<String, dynamic> proceso = {
-                            'nrOp': widget.pesajeItem.nrOp,
-                            'numeroPesaje': widget.pesajeItem.numeroPesaje,
-                            'maquina': widget.pesajeItem.maquina,
-                            'producto': widget.pesajeItem.productoOp,
-                            'codProducto': widget.pesajeItem.codProducto,
-                            'fecha_proceso': widget.pesajeItem.fechaApertura,
-                            'fecha_guardado': DateTime.now().toIso8601String(),
-                            'pdfPath': pdfPath,
-                            'situacion': widget.pesajeItem.situacion,
-                          };
+      // Preparar datos del proceso
+      Map<String, dynamic> proceso = {
+        'nrOp': widget.pesajeItem.nrOp,
+        'numeroPesaje': widget.pesajeItem.numeroPesaje,
+        'maquina': widget.pesajeItem.maquina,
+        'producto': widget.pesajeItem.productoOp,
+        'codProducto': widget.pesajeItem.codProducto,
+        'fecha_proceso': widget.pesajeItem.fechaApertura,
+        'fecha_guardado': DateTime.now().toIso8601String(),
+        'pdfPath': pdfPath,
+        'situacion': widget.pesajeItem.situacion,
+      };
 
-                          // Guardar en SQLite y obtener ID
-                          int procesoId =
-                              await _dbHelper.insertProceso(proceso);
+      // Guardar en SQLite y obtener ID
+      int procesoId = await _dbHelper.insertProceso(proceso);
 
-                          // Lista para secuencias iniciadas que se sincronizarán
-                          List<Map<String, dynamic>> secuencias = [];
+      // Lista para secuencias iniciadas que se sincronizarán
+      List<Map<String, dynamic>> secuencias = [];
 
-                          // Procesar cada secuencia
-                          for (var i = 0; i < items.length; i++) {
-                            var item = items[i];
+      // Procesar cada secuencia
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
 
-                            // Preparar datos de la secuencia
-                            Map<String, dynamic> secuencia = {
-                              'proceso_id': procesoId,
-                              'secuencia': item.sec,
-                              'instruccion': item.operMaquina,
-                              'producto': item.productoPesaje,
-                              'temperatura': item.temperatura,
-                              'tiempo': item.minutos,
-                              'ctd_explosion': item.ctdExplosion,
-                              'observacion': item.observacion,
-                              'codigo_escaneado': item.codigoEscaneado,
-                              'hora_inicio': _startTimes[i]?.toIso8601String(),
-                              'hora_fin': _endTimes[i]?.toIso8601String(),
-                            };
+        // Preparar datos de la secuencia
+        Map<String, dynamic> secuencia = {
+          'proceso_id': procesoId,
+          'secuencia': item.sec,
+          'instruccion': item.operMaquina,
+          'producto': item.productoPesaje,
+          'temperatura': item.temperatura,
+          'tiempo': item.minutos,
+          'ctd_explosion': item.ctdExplosion,
+          'observacion': item.observacion,
+          'codigo_escaneado': item.codigoEscaneado,
+          'hora_inicio': _startTimes[i]?.toIso8601String(),
+          'hora_fin': _endTimes[i]?.toIso8601String(),
+        };
 
-                            // Guardar en SQLite
-                            await _dbHelper.insertSecuencia(secuencia);
+        // Guardar en SQLite
+        await _dbHelper.insertSecuencia(secuencia);
 
-                            // Si la secuencia fue iniciada, agregarla para sincronización
-                            if (_startTimes.containsKey(i)) {
-                              secuencias.add({
-                                ...secuencia,
-                                'hora_inicio':
-                                    _startTimes[i]?.toIso8601String(),
-                                'hora_fin': _endTimes[i]?.toIso8601String(),
-                              });
-                            }
-                          }
+        // Si la secuencia fue iniciada, agregarla para sincronización
+        if (_startTimes.containsKey(i)) {
+          secuencias.add({
+            ...secuencia,
+            'hora_inicio': _startTimes[i]?.toIso8601String(),
+            'hora_fin': _endTimes[i]?.toIso8601String(),
+          });
+        }
+      }
 
-                          // Intentar sincronizar con el servidor
-                          final syncResult =
-                              await _apiService.sincronizarPesaje(
-                            proceso: proceso,
-                            secuencias: secuencias,
-                          );
+      // Intentar sincronizar con el servidor
+      final syncResult = await _apiService.sincronizarPesaje(
+        proceso: proceso,
+        secuencias: secuencias,
+      );
 
-                          // Manejar resultado de sincronización
-                          if (!syncResult['success']) {
-                            if (syncResult['sessionExpired'] == true) {
-                              // Si la sesión expiró, mostrar mensaje y redirigir al login
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Su sesión ha expirado. Por favor, inicie sesión nuevamente.'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                              // Aquí puedes agregar la navegación al login si es necesario
-                              return;
-                            } else {
-                              // Si falló por otra razón, mostrar advertencia pero continuar
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Advertencia: ${syncResult['message']}. Los datos se sincronizarán más tarde.'),
-                                  backgroundColor: Colors.orange,
-                                  duration: Duration(seconds: 4),
-                                ),
-                              );
-                            }
-                          }
+      // Manejar resultado de sincronización
+      if (!syncResult['success']) {
+        if (syncResult['sessionExpired'] == true) {
+          // Si la sesión expiró, mostrar mensaje y redirigir al login
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Su sesión ha expirado. Por favor, inicie sesión nuevamente.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          // Aquí puedes agregar la navegación al login si es necesario
+          return;
+        } else {
+          // Si falló por otra razón, mostrar advertencia pero continuar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Advertencia: ${syncResult['message']}. Los datos se sincronizarán más tarde.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      }
 
-                          // Generar y guardar PDF
-                          final pdf = await _generarPDF();
-                          final File file = File(pdfPath);
-                          await file.writeAsBytes(await pdf.save());
+      // Generar y guardar PDF
+      final pdf = await _generarPDF();
+      final File file = File(pdfPath);
+      await file.writeAsBytes(await pdf.save());
 
-                          // Mostrar mensaje de éxito
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(syncResult['success']
-                                  ? 'Proceso guardado y sincronizado correctamente'
-                                  : 'Proceso guardado localmente'),
-                              backgroundColor: syncResult['success']
-                                  ? Colors.green
-                                  : Colors.blue,
-                              duration: Duration(seconds: 3),
-                            ),
-                          );
+      // Marcar el proceso como finalizado en el widget
+      setState(() {
+        widget.pesajeItem.situacion = 'FINALIZADO';
+      });
 
-                          // Volver a la pantalla anterior
-                          Navigator.pop(context, items);
-                        } catch (e) {
-                          print('Error al guardar proceso: $e');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'Error al guardar el proceso: ${e.toString()}'),
-                              backgroundColor: Colors.red,
-                              duration: Duration(seconds: 4),
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                      child: Text(
-                        'Fin\nProceso',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(syncResult['success']
+              ? 'Proceso guardado y sincronizado correctamente'
+              : 'Proceso guardado localmente'),
+          backgroundColor: syncResult['success'] ? Colors.green : Colors.blue,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      // Volver a la pantalla anterior con los items actualizados y una señal de finalización
+      Navigator.pop(context, {
+        'items': items,
+        'isFinished': true,
+        'processKey': '${widget.pesajeItem.nrOp}_${widget.pesajeItem.numeroPesaje}_${widget.pesajeItem.maquina}'
+      });
+
+    } catch (e) {
+      print('Error al guardar proceso: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar el proceso: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  },
+  style: ElevatedButton.styleFrom(
+    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+  ),
+  child: Text(
+    'Fin\nProceso',
+    textAlign: TextAlign.center,
+  ),
+),
                     SizedBox(width: 10),
                     ElevatedButton(
                         onPressed: () async {

@@ -1,3 +1,4 @@
+import 'package:controlformulaciones/data/db_helper.dart';
 import 'package:controlformulaciones/screens/reportes.dart';
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
@@ -18,7 +19,7 @@ class FormulationItem {
   final String operMaquina;
   final double temperatura;
   final int minutos;
-  final String situacion;
+  late final String situacion;
   final String? fechaApertura;
   final String? productoPesaje;
   bool checked;
@@ -103,32 +104,49 @@ class ControlFormulaciones extends StatefulWidget {
 
 class _ControlFormulacionesState extends State<ControlFormulaciones> {
   final ApiService _apiService = ApiService();
+  final DBHelper _dbHelper = DBHelper();
   late String userRole;
   late String userName;
   List<FormulationItem> items = [];
   bool isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   List<FormulationItem> _filteredItems = [];
+  Set<String> _finishedProcesses = {};
 
   @override
   void initState() {
     super.initState();
     userRole = widget.userData?['rol'] ?? '';
     userName = widget.userData?['nombre'] ?? 'Usuario';
-    _loadPesajesAbiertos();
+    _loadFinishedProcesses().then((_) => _loadPesajesAbiertos());
     _searchController.addListener(_filterItems);
+  }
+
+  Future<void> _loadFinishedProcesses() async {
+    try {
+      final procesos = await _dbHelper.getProcesos();
+      setState(() {
+        _finishedProcesses = procesos.map((proceso) {
+          return '${proceso['nrOp']}_${proceso['numeroPesaje']}_${proceso['maquina']}';
+        }).toSet();
+      });
+    } catch (e) {
+      print('Error cargando procesos finalizados: $e');
+    }
   }
 
   void _filterItems() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredItems = query.isEmpty
-          ? items
-          : items
-              .where((item) =>
-                  item.nrOp.toString().contains(query) ||
-                  item.numeroPesaje.toString().contains(query))
-              .toList();
+      _filteredItems = items
+          .where((item) {
+            String processKey = '${item.nrOp}_${item.numeroPesaje}_${item.maquina}';
+            return (query.isEmpty || 
+                    item.nrOp.toString().contains(query) ||
+                    item.numeroPesaje.toString().contains(query)) &&
+                   !_finishedProcesses.contains(processKey);
+          })
+          .toList();
     });
   }
 
@@ -139,6 +157,10 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
         setState(() {
           items = (response['data'] as List)
               .map((item) => FormulationItem.fromJson(item))
+              .where((item) {
+                String processKey = '${item.nrOp}_${item.numeroPesaje}_${item.maquina}';
+                return !_finishedProcesses.contains(processKey);
+              })
               .toList();
           _filteredItems = items;
           isLoading = false;
@@ -148,121 +170,6 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
       print('Error loading pesajes: $e');
       setState(() => isLoading = false);
     }
-  }
-
-  Widget _buildItemList() {
-    if (isLoading) return Center(child: CircularProgressIndicator());
-    if (_filteredItems.isEmpty)
-      return Center(child: Text('No hay pesajes activos'));
-
-    var groupedByOP =
-        groupBy(_filteredItems, (FormulationItem item) => item.nrOp);
-    var sortedOPs = groupedByOP.keys.toList()..sort();
-
-    return ListView.builder(
-      itemCount: sortedOPs.length,
-      itemBuilder: (context, index) {
-        int op = sortedOPs[index];
-        List<FormulationItem> opItems = groupedByOP[op]!;
-
-        var groupedByMaquina =
-            groupBy(opItems, (FormulationItem item) => item.maquina);
-        var sortedMaquinas = groupedByMaquina.keys.toList()
-          ..sort((a, b) {
-            final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-            final numB = int.tryParse(b.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-            return numA.compareTo(numB);
-          });
-
-        return Card(
-          margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: ExpansionTile(
-            title: Row(
-              children: [
-                Text(
-                  'OP: $op',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    opItems.first.productoOp,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            children: sortedMaquinas.map((maquina) {
-              var maquinaItems = groupedByMaquina[maquina]!;
-              var groupedByPesaje = groupBy(
-                maquinaItems,
-                (FormulationItem item) => item.numeroPesaje,
-              );
-
-              return ExpansionTile(
-                title: Text(
-                  maquina,
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                children: groupedByPesaje.entries.map((pesajeGroup) {
-                  var pesajeItems = groupedByPesaje[pesajeGroup.key]!;
-                  return ListTile(
-                    title: Text('Pesaje: ${pesajeGroup.key}'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Secuencia actual: ${pesajeItems.where((item) => item.status == RowStatus.current).firstOrNull?.sec ?? 'No iniciado'}',
-                        ),
-                        Text(
-                          'Fecha: ${pesajeItems.first.fechaApertura?.split('T')[0]}',
-                        ),
-                      ],
-                    ),
-                    trailing: IconButton(
-                      onPressed: () async {
-                        final updatedItems =
-                            await Navigator.push<List<FormulationItem>>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FiltracionFormulaciones(
-                              pesajeItem: pesajeItems.first,
-                              bomboItems: pesajeItems,
-                            ),
-                          ),
-                        );
-
-                        if (updatedItems != null) {
-                          setState(() {
-                            for (var updatedItem in updatedItems) {
-                              final index = items.indexWhere((item) =>
-                                  item.idPesagemItem ==
-                                  updatedItem.idPesagemItem);
-                              if (index != -1) {
-                                items[index] = updatedItem;
-                              }
-                            }
-                            _filteredItems = items;
-                          });
-                        }
-                      },
-                      icon: Icon(Icons.arrow_forward_ios),
-                    ),
-                  );
-                }).toList(),
-              );
-            }).toList(),
-          ),
-        );
-      },
-    );
   }
 
   List<Widget> _buildDrawerItems() {
@@ -341,6 +248,134 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     );
 
     return items;
+  }
+
+  Widget _buildItemList() {
+    if (isLoading) return Center(child: CircularProgressIndicator());
+    if (_filteredItems.isEmpty)
+      return Center(child: Text('No hay pesajes activos'));
+
+    var groupedByOP =
+        groupBy(_filteredItems, (FormulationItem item) => item.nrOp);
+    var sortedOPs = groupedByOP.keys.toList()..sort();
+
+    return ListView.builder(
+      itemCount: sortedOPs.length,
+      itemBuilder: (context, index) {
+        int op = sortedOPs[index];
+        List<FormulationItem> opItems = groupedByOP[op]!;
+        
+        return Card(
+          margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          child: ExpansionTile(
+            title: Row(
+              children: [
+                Text(
+                  'OP: $op',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    opItems.first.productoOp,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            children: _buildMaquinaTiles(opItems),
+          ),
+        );
+      },
+    );
+  }
+
+  List<Widget> _buildMaquinaTiles(List<FormulationItem> opItems) {
+    var groupedByMaquina = groupBy(opItems, (FormulationItem item) => item.maquina);
+    var sortedMaquinas = groupedByMaquina.keys.toList()
+      ..sort((a, b) {
+        final numA = int.tryParse(a.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+        final numB = int.tryParse(b.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+        return numA.compareTo(numB);
+      });
+
+    return sortedMaquinas.map((maquina) {var maquinaItems = groupedByMaquina[maquina]!;
+      var groupedByPesaje = groupBy(
+        maquinaItems,
+        (FormulationItem item) => item.numeroPesaje,
+      );
+
+      return ExpansionTile(
+        title: Text(
+          maquina,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        children: groupedByPesaje.entries.map((pesajeGroup) {
+          var pesajeItems = groupedByPesaje[pesajeGroup.key]!;
+          return ListTile(
+            title: Text('Pesaje: ${pesajeGroup.key}'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Secuencia actual: ${pesajeItems.where((item) => item.status == RowStatus.current).firstOrNull?.sec ?? 'No iniciado'}',
+                ),
+                Text(
+                  'Fecha: ${pesajeItems.first.fechaApertura?.split('T')[0]}',
+                ),
+              ],
+            ),
+            trailing: IconButton(
+              onPressed: () async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => FiltracionFormulaciones(
+        pesajeItem: pesajeItems.first,
+        bomboItems: pesajeItems,
+      ),
+    ),
+  );
+
+  if (result != null) {
+    // Verificar si el resultado incluye la señal de finalización
+    if (result is Map && result['isFinished'] == true) {
+      // Eliminar el proceso finalizado de la lista
+      setState(() {
+        items.removeWhere((item) {
+          String itemKey = '${item.nrOp}_${item.numeroPesaje}_${item.maquina}';
+          return itemKey == result['processKey'];
+        });
+        _filterItems();
+      });
+    } else if (result is List<FormulationItem>) {
+      // Actualizar los items normalmente si no está finalizado
+      setState(() {
+        for (var updatedItem in result) {
+          final index = items.indexWhere((item) =>
+              item.idPesagemItem == updatedItem.idPesagemItem);
+          if (index != -1) {
+            items[index] = updatedItem;
+          }
+        }
+        _filterItems();
+      });
+    }
+  }
+},
+              icon: Icon(Icons.arrow_forward_ios),
+            ),
+          );
+        }).toList(),
+      );
+    }).toList();
   }
 
   @override
