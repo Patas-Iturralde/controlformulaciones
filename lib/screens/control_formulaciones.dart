@@ -1,10 +1,13 @@
 import 'package:controlformulaciones/data/db_helper.dart';
+import 'package:controlformulaciones/provider/timer_provider.dart';
 import 'package:controlformulaciones/screens/reportes.dart';
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:controlformulaciones/screens/filtracion_formulaciones.dart';
 import 'package:controlformulaciones/services/api_service.dart';
 import 'package:controlformulaciones/screens/login.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum RowStatus { completed, current, skipped, pending }
 
@@ -19,7 +22,7 @@ class FormulationItem {
   final String operMaquina;
   final double temperatura;
   final int minutos;
-  late final String situacion;
+  String situacion;
   final String? fechaApertura;
   final String? productoPesaje;
   bool checked;
@@ -113,6 +116,9 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
   List<FormulationItem> _filteredItems = [];
   Set<String> _finishedProcesses = {};
 
+  bool timerNotificationsEnabled = false;
+  bool additionalWorkNotificationsEnabled = false;
+
   @override
   void initState() {
     super.initState();
@@ -120,6 +126,58 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
     userName = widget.userData?['nombre'] ?? 'Usuario';
     _loadFinishedProcesses().then((_) => _loadPesajesAbiertos());
     _searchController.addListener(_filterItems);
+    _loadNotificationPreferences();
+  }
+  Future<void> _loadNotificationPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      timerNotificationsEnabled = prefs.getBool('timer_notifications') ?? false;
+      additionalWorkNotificationsEnabled = prefs.getBool('additional_work_notifications') ?? false;
+    });
+  }
+
+  Future<void> _toggleTimerNotifications(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('timer_notifications', value);
+    setState(() {
+      timerNotificationsEnabled = value;
+    });
+    
+    if (value) {
+      // Habilitar notificaciones de tiempo
+      context.read<TimerProvider>().enableNotifications();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notificaciones de tiempo activadas'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      // Deshabilitar notificaciones de tiempo
+      context.read<TimerProvider>().disableNotifications();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notificaciones de tiempo desactivadas'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+  Future<void> _toggleAdditionalWorkNotifications(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('additional_work_notifications', value);
+    setState(() {
+      additionalWorkNotificationsEnabled = value;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(value 
+          ? 'Notificaciones de trabajo adicional activadas'
+          : 'Notificaciones de trabajo adicional desactivadas'),
+        backgroundColor: value ? Colors.green : Colors.orange,
+      ),
+    );
   }
 
   Future<void> _loadFinishedProcesses() async {
@@ -202,23 +260,23 @@ class _ControlFormulacionesState extends State<ControlFormulaciones> {
           ],
         ),
       ),
-      ListTile(
-        leading: Icon(Icons.notifications),
-        title: Text('Activar\nnotificaciones'),
-        onTap: () {
-          Navigator.pop(context);
-        },
+      SwitchListTile(
+        title: Text('Notificaciones de tiempo'),
+        subtitle: Text('Alertas cuando finaliza un temporizador'),
+        secondary: Icon(Icons.notifications_active),
+        value: timerNotificationsEnabled,
+        onChanged: _toggleTimerNotifications,
       ),
     ];
 
     if (userRole == 'S') {
       items.addAll([
-        ListTile(
-          leading: Icon(Icons.warning),
-          title: Text('Emitir alertas de\ntrabajo adicional'),
-          onTap: () {
-            Navigator.pop(context);
-          },
+        SwitchListTile(
+          title: Text('Alertas de trabajo adicional'),
+          subtitle: Text('Notificaciones para trabajo extra'),
+          secondary: Icon(Icons.warning),
+          value: additionalWorkNotificationsEnabled,
+          onChanged: _toggleAdditionalWorkNotifications,
         ),
         ListTile(
           leading: Icon(Icons.document_scanner),
